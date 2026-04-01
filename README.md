@@ -66,6 +66,37 @@ python -m app.main
 
 API will be available at `http://127.0.0.1:8000`.
 
+### Safe Mode Startup Checks
+You can run startup safety checks to verify local prerequisites before serving requests:
+
+```bash
+python -m app.main --safe-mode
+```
+
+Safe mode verifies:
+- Ollama service is reachable
+- The configured model (`OLLAMA_MODEL`, default `llama3`) is pulled locally
+- The SQLite DB path is writable
+
+You can also enable it with environment variable:
+
+```bash
+export SAFE_MODE=1
+python -m app.main
+```
+
+### Optional Local Auth For Remote Access
+By default, local requests are allowed without auth. For non-localhost access, set a token:
+
+```bash
+export LOCAL_API_TOKEN="your-local-token"
+python -m app.main
+```
+
+Remote clients can then pass either:
+- `Authorization: Bearer your-local-token`
+- `X-API-Token: your-local-token`
+
 ## Seed Demo Data
 Use demo mode to create 30 synthetic days of entries:
 
@@ -100,5 +131,12 @@ pytest -q
 Current test coverage includes:
 - Sentiment and emotion analysis flow (mocked pipelines)
 - Insight generation with mocked Ollama client
+- API integration tests for `/entries`, `/search`, `/insights/weekly`, `/insights/monthly`
+
+## CI
+GitHub Actions workflow is included at `.github/workflows/ci.yml` with:
+- lint (`ruff`)
+- tests (`pytest`)
+- dependency vulnerability scan (`pip-audit`)
 
 

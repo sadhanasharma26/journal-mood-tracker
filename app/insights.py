@@ -1,4 +1,5 @@
 import json
+import logging
 import os
 from typing import Any
 
@@ -6,6 +7,7 @@ from ollama import Client
 
 
 DEFAULT_OLLAMA_MODEL = os.getenv("OLLAMA_MODEL", "llama3")
+logger = logging.getLogger(__name__)
 
 
 def _format_entries(entries: list[dict[str, Any]]) -> str:
@@ -57,13 +59,24 @@ def generate_insight(entries: list[dict[str, Any]], model: str = DEFAULT_OLLAMA_
         "3) Three actionable insights (numbered list)"
     )
 
-    client = Client()
-    response = client.chat(
-        model=model,
-        messages=[
-            {"role": "system", "content": system_prompt},
-            {"role": "user", "content": user_prompt},
-        ],
-    )
-
-    return response["message"]["content"].strip()
+    try:
+        client = Client()
+        response = client.chat(
+            model=model,
+            messages=[
+                {"role": "system", "content": system_prompt},
+                {"role": "user", "content": user_prompt},
+            ],
+        )
+        return response["message"]["content"].strip()
+    except Exception:
+        logger.exception(
+            "Insight generation failed",
+            extra={"model": model, "entries_count": len(entries)},
+        )
+        # Keep the API responsive when Ollama is unavailable or model is missing.
+        return (
+            "Insight generation is temporarily unavailable because Ollama could not be reached. "
+            "Start Ollama (`ollama serve`) and ensure the model is available "
+            f"(`ollama pull {model}`)."
+        )

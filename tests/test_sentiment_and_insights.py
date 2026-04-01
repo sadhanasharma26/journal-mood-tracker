@@ -55,3 +55,25 @@ def test_generate_insight_mocks_ollama_chat(monkeypatch):
 def test_generate_insight_empty_entries():
     output = insights.generate_insight([])
     assert "not enough recent entries" in output.lower()
+
+
+def test_generate_insight_handles_ollama_unavailable(monkeypatch):
+    class FailingClient:
+        def chat(self, model, messages):
+            raise RuntimeError("connection refused")
+
+    monkeypatch.setattr(insights, "Client", FailingClient)
+
+    entries = [
+        {
+            "date": "2026-03-30",
+            "raw_text": "Work was stressful.",
+            "sentiment_label": "negative",
+            "sentiment_score": 0.8,
+            "emotions": [{"emotion": "stress", "score": 0.9}],
+        }
+    ]
+
+    output = insights.generate_insight(entries, model="llama3")
+    assert "ollama" in output.lower()
+    assert "temporarily unavailable" in output.lower()
