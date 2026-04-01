@@ -101,8 +101,4 @@ Current test coverage includes:
 - Sentiment and emotion analysis flow (mocked pipelines)
 - Insight generation with mocked Ollama client
 
-## Apple Silicon Notes (M1/M2)
-- This project runs on MacBook Air M1.
-- First run may take time due to model downloads.
-- Smaller Ollama models (`qwen2.5:3b`) improve responsiveness.
 
