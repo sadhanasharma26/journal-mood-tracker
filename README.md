@@ -149,7 +149,6 @@ If you want to contribute:
 
 Project contribution and community files:
 - `CONTRIBUTING.md`
-- `CODE_OF_CONDUCT.md`
 - `.github/pull_request_template.md`
 - `.github/ISSUE_TEMPLATE/`
 
