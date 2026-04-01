@@ -7,6 +7,19 @@ Local-first AI-powered journaling app with:
 - Ollama for local weekly/monthly reflective insights
 - Sentence-transformers + FAISS for semantic search
 
+### Dashboard Home & New Entry Page
+![Screenshot 1](assets/screenshots/dashboard-home.png)
+
+### Sentiments Timeline
+![Screenshot 2](assets/screenshots/new-entry-form.png)
+
+### Emotion Frequency by Day of Week
+![Screenshot 3](assets/screenshots/insights-view.png)
+
+### Semantic Search Entries by Meaning
+![Screenshot 4](assets/screenshots/entry-list.png)
+
+
 ## privacy_notice
 All data stays on your machine.
 - Journal entries are stored in a local SQLite file (`journal.db`).
@@ -112,20 +125,6 @@ streamlit run dashboard.py
 ```
 
 Dashboard will open in your browser.
-
-## Screenshots
-
-### Dashboard Home & New Entry Page
-![Screenshot 1](assets/screenshots/dashboard-home.png)
-
-### Sentiments Timeline
-![Screenshot 2](assets/screenshots/new-entry-form.png)
-
-### Emotion Frequency by Day of Week
-![Screenshot 3](assets/screenshots/insights-view.png)
-
-### Semantic Search Entries by Meaning
-![Screenshot 4](assets/screenshots/entry-list.png)
 
 ## API Endpoints
 - `POST /entries` create a dated entry and run analysis
