@@ -113,6 +113,20 @@ streamlit run dashboard.py
 
 Dashboard will open in your browser.
 
+## Screenshots
+
+### Dashboard Home & New Entry Page
+![Screenshot 1](assets/screenshots/dashboard-home.png)
+
+### Sentiments Timeline
+![Screenshot 2](assets/screenshots/new-entry-form.png)
+
+### Emotion Frequency by Day of Week
+![Screenshot 3](assets/screenshots/insights-view.png)
+
+### Semantic Search Entries by Meaning
+![Screenshot 4](assets/screenshots/entry-list.png)
+
 ## API Endpoints
 - `POST /entries` create a dated entry and run analysis
 - `GET /entries` list all entries

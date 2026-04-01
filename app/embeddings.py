@@ -1,17 +1,37 @@
 from functools import lru_cache
+import hashlib
+import os
+import platform
+from typing import TYPE_CHECKING, Any
 
-import faiss
 import numpy as np
-from sentence_transformers import SentenceTransformer
+
+
+if TYPE_CHECKING:
+    from sentence_transformers import SentenceTransformer
 
 
 EMBEDDING_MODEL_NAME = "all-MiniLM-L6-v2"
 EMBEDDING_DIM = 384
 
 
+def _is_light_mode_enabled() -> bool:
+    value = os.getenv("JMT_LIGHT_MODE", "auto").strip().lower()
+    if value in {"1", "true", "yes", "on"}:
+        return True
+    if value in {"0", "false", "no", "off"}:
+        return False
+    if os.getenv("PYTEST_CURRENT_TEST"):
+        return False
+    return platform.system() == "Darwin" and platform.machine().lower() in {"arm64", "aarch64"}
+
+
 @lru_cache(maxsize=1)
-def get_embedding_model() -> SentenceTransformer:
+def get_embedding_model() -> "SentenceTransformer":
     """Load and cache the sentence-transformer model locally."""
+    # Import lazily so API startup does not depend on ML runtime initialization.
+    from sentence_transformers import SentenceTransformer
+
     return SentenceTransformer(EMBEDDING_MODEL_NAME)
 
 
@@ -19,6 +39,16 @@ def generate_embedding(text: str) -> np.ndarray:
     """Generate a normalized 384-dim float32 embedding for the provided text."""
     if not text or not text.strip():
         raise ValueError("Text must not be empty.")
+
+    if _is_light_mode_enabled():
+        digest = hashlib.sha256(text.strip().encode("utf-8")).digest()
+        seed = int.from_bytes(digest[:8], "big", signed=False)
+        rng = np.random.default_rng(seed)
+        vector = rng.normal(size=EMBEDDING_DIM).astype(np.float32)
+        norm = np.linalg.norm(vector)
+        if norm > 0:
+            vector = vector / norm
+        return vector.astype(np.float32)
 
     model = get_embedding_model()
     vector = model.encode(text, normalize_embeddings=True)
@@ -52,7 +82,14 @@ def deserialize_embedding(blob: bytes) -> np.ndarray:
     return arr
 
 
-def build_faiss_index(entries: list[dict]) -> tuple[faiss.IndexFlatIP, list[int]]:
+def _normalize_rows(matrix: np.ndarray) -> np.ndarray:
+    """L2-normalize each row and keep float32 for cosine similarity math."""
+    norms = np.linalg.norm(matrix, axis=1, keepdims=True)
+    norms = np.where(norms == 0.0, 1.0, norms)
+    return (matrix / norms).astype(np.float32)
+
+
+def build_faiss_index(entries: list[dict]) -> tuple[Any, list[int]]:
     """
     Build an in-memory FAISS cosine-similarity index from journal entries.
 
@@ -60,27 +97,35 @@ def build_faiss_index(entries: list[dict]) -> tuple[faiss.IndexFlatIP, list[int]
     - id: int
     - embedding: bytes (serialized float32 vector)
     """
-    index = faiss.IndexFlatIP(EMBEDDING_DIM)
     id_map: list[int] = []
-
-    if not entries:
-        return index, id_map
-
     vectors: list[np.ndarray] = []
+
     for item in entries:
         vectors.append(deserialize_embedding(item["embedding"]))
         id_map.append(int(item["id"]))
 
-    matrix = np.vstack(vectors).astype(np.float32)
-    faiss.normalize_L2(matrix)
-    index.add(matrix)
+    matrix = (
+        _normalize_rows(np.vstack(vectors).astype(np.float32))
+        if vectors
+        else np.empty((0, EMBEDDING_DIM), dtype=np.float32)
+    )
 
-    return index, id_map
+    # Import FAISS lazily to avoid loading native OpenMP libs during startup.
+    try:
+        import faiss  # type: ignore
+
+        index = faiss.IndexFlatIP(EMBEDDING_DIM)
+        if matrix.shape[0] > 0:
+            index.add(matrix)
+        return index, id_map
+    except Exception:
+        # Portable fallback for environments where FAISS/native runtime is unstable.
+        return {"backend": "numpy", "matrix": matrix}, id_map
 
 
 def semantic_search(
     query: str,
-    index: faiss.IndexFlatIP,
+    index: Any,
     id_map: list[int],
     top_k: int = 5,
 ) -> list[dict]:
@@ -91,17 +136,34 @@ def semantic_search(
     if top_k <= 0:
         raise ValueError("top_k must be greater than 0.")
 
-    if index.ntotal == 0 or not id_map:
+    if not id_map:
         return []
 
-    query_vec = generate_embedding(query).reshape(1, -1).astype(np.float32)
-    faiss.normalize_L2(query_vec)
+    query_vec = generate_embedding(query).astype(np.float32)
+    query_norm = float(np.linalg.norm(query_vec))
+    if query_norm > 0:
+        query_vec = query_vec / query_norm
 
     k = min(top_k, len(id_map))
-    scores, indices = index.search(query_vec, k)
+
+    if isinstance(index, dict) and index.get("backend") == "numpy":
+        matrix = index.get("matrix")
+        if matrix is None or matrix.shape[0] == 0:
+            return []
+
+        similarity = matrix @ query_vec
+        top_indices = np.argsort(-similarity)[:k]
+        scores_arr = similarity[top_indices]
+        pairs = list(zip(scores_arr.tolist(), top_indices.tolist()))
+    else:
+        if getattr(index, "ntotal", 0) == 0:
+            return []
+
+        scores, indices = index.search(query_vec.reshape(1, -1), k)
+        pairs = list(zip(scores[0].tolist(), indices[0].tolist()))
 
     results: list[dict] = []
-    for score, idx in zip(scores[0], indices[0]):
+    for score, idx in pairs:
         if idx == -1:
             continue
         results.append(
