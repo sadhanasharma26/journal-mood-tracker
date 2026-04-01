@@ -139,4 +139,33 @@ GitHub Actions workflow is included at `.github/workflows/ci.yml` with:
 - tests (`pytest`)
 - dependency vulnerability scan (`pip-audit`)
 
+## Contributing
+Contributions are welcome, including first-time contributions.
+
+If you want to contribute:
+- read `CONTRIBUTING.md`
+- check open issues or propose a new one
+- open a focused PR with test evidence
+
+Project contribution and community files:
+- `CONTRIBUTING.md`
+- `CODE_OF_CONDUCT.md`
+- `.github/pull_request_template.md`
+- `.github/ISSUE_TEMPLATE/`
+
+## Pull Requests
+PRs are reviewed for:
+- correctness and regressions
+- privacy-first impact
+- test coverage and maintainability
+
+Please keep PRs scoped and explain the motivation clearly.
+
+## Roadmap Ideas
+Areas where contributions are especially useful:
+- performance improvements for semantic search
+- stronger API integration test coverage
+- better UX for insight and timeline views
+- packaging and local installer improvements
+
 
