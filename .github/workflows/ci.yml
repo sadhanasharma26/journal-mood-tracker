@@ -32,4 +32,12 @@ jobs:
         run: pytest -q
 
       - name: Dependency vulnerability scan
-        run: pip-audit || true
+        continue-on-error: true
+        run: pip-audit -f json -o pip-audit-report.json
+
+      - name: Upload vulnerability report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: pip-audit-report
+          path: pip-audit-report.json
