@@ -1,29 +1,19 @@
 from functools import lru_cache
 import hashlib
 import os
-import platform
 from typing import TYPE_CHECKING, Any
 
 import numpy as np
 
+from app.config import settings
+from app.utils import _is_light_mode_enabled
 
 if TYPE_CHECKING:
     from sentence_transformers import SentenceTransformer
 
 
-EMBEDDING_MODEL_NAME = "all-MiniLM-L6-v2"
+EMBEDDING_MODEL_NAME = settings.EMBEDDING_MODEL_NAME
 EMBEDDING_DIM = 384
-
-
-def _is_light_mode_enabled() -> bool:
-    value = os.getenv("JMT_LIGHT_MODE", "auto").strip().lower()
-    if value in {"1", "true", "yes", "on"}:
-        return True
-    if value in {"0", "false", "no", "off"}:
-        return False
-    if os.getenv("PYTEST_CURRENT_TEST"):
-        return False
-    return platform.system() == "Darwin" and platform.machine().lower() in {"arm64", "aarch64"}
 
 
 @lru_cache(maxsize=1)
@@ -32,7 +22,7 @@ def get_embedding_model() -> "SentenceTransformer":
     # Import lazily so API startup does not depend on ML runtime initialization.
     from sentence_transformers import SentenceTransformer
 
-    return SentenceTransformer(EMBEDDING_MODEL_NAME)
+    return SentenceTransformer(settings.EMBEDDING_MODEL_NAME)
 
 
 def generate_embedding(text: str) -> np.ndarray:

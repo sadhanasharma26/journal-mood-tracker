@@ -1,4 +1,4 @@
-from datetime import datetime
+from datetime import datetime, timezone
 
 from sqlalchemy import Column, DateTime, Float, Integer, LargeBinary, String, Text
 
@@ -15,4 +15,4 @@ class JournalEntry(Base):
     sentiment_score = Column(Float, nullable=False)  # 0.0 to 1.0
     emotions = Column(Text, nullable=False)  # JSON string of top 3 emotions with scores
     embedding = Column(LargeBinary, nullable=False)  # serialized numpy array bytes
-    created_at = Column(DateTime, default=datetime.utcnow, nullable=False)
+    created_at = Column(DateTime, default=lambda: datetime.now(timezone.utc), nullable=False)

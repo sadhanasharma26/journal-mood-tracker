@@ -1,18 +1,26 @@
+from __future__ import annotations
+
 import argparse
+import csv
+import io
 import json
+import logging
 import os
 from collections.abc import Generator
 from contextlib import asynccontextmanager
 from datetime import datetime, timedelta
-from threading import Lock
+from threading import Lock, Semaphore
 
 import numpy as np
 import uvicorn
 from fastapi import Depends, FastAPI, HTTPException, Query, Request
+from fastapi.responses import StreamingResponse
 from ollama import Client as OllamaClient
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, field_validator
 from sqlalchemy import text
 from sqlalchemy.orm import Session
+
+logger = logging.getLogger(__name__)
 
 from app.database import DB_PATH, SessionLocal, get_db, init_db
 from app.embeddings import (
@@ -29,12 +37,32 @@ from app.sentiment import analyze_entry
 SAFE_MODE_ENABLED = os.getenv("SAFE_MODE", "0") == "1"
 LOCAL_HOSTS = {"127.0.0.1", "::1", "localhost", "testclient"}
 
-_faiss_cache_lock = Lock()
-_faiss_cache: dict = {
-    "count": -1,
-    "index": None,
-    "id_map": [],
-}
+
+class FAISSCache:
+    def __init__(self):
+        self._lock = Lock()
+        self._index = None
+        self._id_map: list = []
+        self._count: int = -1
+
+    def needs_rebuild(self, current_count: int) -> bool:
+        return self._index is None or self._count != current_count
+
+    def update(self, index, id_map: list, count: int) -> None:
+        self._index = index
+        self._id_map = id_map
+        self._count = count
+
+    def get(self):
+        return self._index, self._id_map
+
+    @property
+    def lock(self) -> Lock:
+        return self._lock
+
+
+_faiss_cache = FAISSCache()
+_inference_semaphore = Semaphore(3)
 
 
 def _is_local_request(host: str | None) -> bool:
@@ -111,23 +139,18 @@ def run_safe_mode_checks() -> None:
 
 
 def _invalidate_faiss_cache() -> None:
-    with _faiss_cache_lock:
-        _faiss_cache["count"] = -1
-        _faiss_cache["index"] = None
-        _faiss_cache["id_map"] = []
+    with _faiss_cache.lock:
+        _faiss_cache.update(None, [], -1)
 
 
 def _get_or_build_faiss_index(entries: list[JournalEntry]):
     entry_count = len(entries)
-    with _faiss_cache_lock:
-        if _faiss_cache["index"] is None or _faiss_cache["count"] != entry_count:
+    with _faiss_cache.lock:
+        if _faiss_cache.needs_rebuild(entry_count):
             entry_dicts = [{"id": e.id, "embedding": e.embedding} for e in entries]
             index, id_map = build_faiss_index(entry_dicts)
-            _faiss_cache["index"] = index
-            _faiss_cache["id_map"] = id_map
-            _faiss_cache["count"] = entry_count
-
-        return _faiss_cache["index"], _faiss_cache["id_map"]
+            _faiss_cache.update(index, id_map, entry_count)
+        return _faiss_cache.get()
 
 
 @asynccontextmanager
@@ -135,6 +158,12 @@ async def lifespan(_: FastAPI):
     init_db()
     if SAFE_MODE_ENABLED:
         run_safe_mode_checks()
+    _token = os.getenv("LOCAL_API_TOKEN", "").strip()
+    if 1 <= len(_token) <= 15:
+        logger.warning(
+            "WARNING: LOCAL_API_TOKEN is set but shorter than 16 characters. "
+            "Use a longer token for better security."
+        )
     yield
 
 
@@ -146,9 +175,24 @@ app = FastAPI(
 )
 
 
+def _truncate_for_inference(text: str) -> str:
+    words = text.split()
+    if len(words) > 400:
+        logger.warning("Entry text truncated from %d words to 400 for ML inference.", len(words))
+        return " ".join(words[:400])
+    return text
+
+
 class EntryCreate(BaseModel):
     date: str = Field(..., pattern=r"^\d{4}-\d{2}-\d{2}$")
-    text: str = Field(..., min_length=1, max_length=8000)
+    text: str = Field(..., min_length=1, max_length=2000)
+
+    @field_validator("text")
+    @classmethod
+    def text_not_blank(cls, v: str) -> str:
+        if not v.strip():
+            raise ValueError("text must not be blank")
+        return v
 
 
 class EntryResponse(BaseModel):
@@ -194,8 +238,14 @@ def create_entry(payload: EntryCreate, db: Session = Depends(get_db)):
     if existing:
         raise HTTPException(status_code=409, detail="An entry already exists for this date.")
 
-    analysis = analyze_entry(payload.text)
-    embedding = generate_embedding(payload.text)
+    inference_text = _truncate_for_inference(payload.text)
+    if not _inference_semaphore.acquire(timeout=5):
+        raise HTTPException(status_code=429, detail="Server is busy, please retry shortly.")
+    try:
+        analysis = analyze_entry(inference_text)
+        embedding = generate_embedding(inference_text)
+    finally:
+        _inference_semaphore.release()
 
     entry = JournalEntry(
         date=payload.date,
@@ -220,6 +270,36 @@ def list_entries(db: Session = Depends(get_db)):
     return [_entry_to_dict(entry) for entry in entries]
 
 
+@app.get("/entries/export")
+def export_entries(db: Session = Depends(get_db)):
+    entries = db.query(JournalEntry).order_by(JournalEntry.date.asc()).all()
+
+    def generate():
+        buf = io.StringIO()
+        writer = csv.writer(buf)
+        writer.writerow(["date", "sentiment_label", "sentiment_score", "top_emotion", "raw_text"])
+        yield buf.getvalue()
+        for entry in entries:
+            buf = io.StringIO()
+            writer = csv.writer(buf)
+            emotions = json.loads(entry.emotions)
+            top_emotion = emotions[0]["emotion"] if emotions else ""
+            writer.writerow([
+                entry.date,
+                entry.sentiment_label,
+                entry.sentiment_score,
+                top_emotion,
+                entry.raw_text,
+            ])
+            yield buf.getvalue()
+
+    return StreamingResponse(
+        generate(),
+        media_type="text/csv",
+        headers={"Content-Disposition": 'attachment; filename="journal_export.csv"'},
+    )
+
+
 @app.get("/entries/{date}", response_model=EntryResponse)
 def get_entry_by_date(date: str, db: Session = Depends(get_db)):
     _parse_date(date)
@@ -228,6 +308,40 @@ def get_entry_by_date(date: str, db: Session = Depends(get_db)):
     if not entry:
         raise HTTPException(status_code=404, detail="Entry not found for the specified date.")
 
+    return _entry_to_dict(entry)
+
+
+class EntryUpdate(BaseModel):
+    text: str = Field(..., min_length=1, max_length=2000)
+
+    @field_validator("text")
+    @classmethod
+    def text_not_blank(cls, v: str) -> str:
+        if not v.strip():
+            raise ValueError("text must not be blank")
+        return v
+
+
+@app.put("/entries/{date}", response_model=EntryResponse)
+def update_entry(date: str, payload: EntryUpdate, db: Session = Depends(get_db)):
+    _parse_date(date)
+    entry = db.query(JournalEntry).filter(JournalEntry.date == date).first()
+    if not entry:
+        raise HTTPException(status_code=404, detail="Entry not found for the specified date.")
+
+    inference_text = _truncate_for_inference(payload.text)
+    analysis = analyze_entry(inference_text)
+    embedding = generate_embedding(inference_text)
+
+    entry.raw_text = payload.text
+    entry.sentiment_label = analysis["sentiment_label"]
+    entry.sentiment_score = analysis["sentiment_score"]
+    entry.emotions = json.dumps(analysis["emotions"])
+    entry.embedding = serialize_embedding(embedding)
+
+    db.commit()
+    db.refresh(entry)
+    _invalidate_faiss_cache()
     return _entry_to_dict(entry)
 
 
@@ -253,7 +367,12 @@ def search_entries(
 ):
     entries = db.query(JournalEntry).order_by(JournalEntry.date.asc()).all()
     index, id_map = _get_or_build_faiss_index(entries)
-    matches = semantic_search(q, index=index, id_map=id_map, top_k=top_k)
+    if not _inference_semaphore.acquire(timeout=5):
+        raise HTTPException(status_code=429, detail="Server is busy, please retry shortly.")
+    try:
+        matches = semantic_search(q, index=index, id_map=id_map, top_k=top_k)
+    finally:
+        _inference_semaphore.release()
 
     if not matches:
         return {"query": q, "results": []}

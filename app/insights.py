@@ -1,12 +1,13 @@
 import json
 import logging
-import os
 from typing import Any
 
 from ollama import Client
 
+from app.config import settings
 
-DEFAULT_OLLAMA_MODEL = os.getenv("OLLAMA_MODEL", "llama3")
+
+DEFAULT_OLLAMA_MODEL = settings.DEFAULT_OLLAMA_MODEL
 logger = logging.getLogger(__name__)
 
 

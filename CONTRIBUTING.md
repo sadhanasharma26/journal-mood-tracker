@@ -24,7 +24,7 @@ This project is local-first and privacy-focused. Please keep that principle in m
 ```bash
 python3 -m venv .venv
 source .venv/bin/activate
-pip install -r requirements.txt
+pip install -r requirements-dev.txt
 ```
 
 4. Run tests.

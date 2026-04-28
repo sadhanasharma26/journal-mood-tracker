@@ -1,31 +1,16 @@
 from functools import lru_cache
 import os
-import platform
 from typing import Any
 
-
-SENTIMENT_MODEL = "cardiffnlp/twitter-roberta-base-sentiment-latest"
-ZERO_SHOT_MODEL = "facebook/bart-large-mnli"
-EMOTION_LABELS = ["joy", "sadness", "anxiety", "anger", "excitement", "stress"]
-POSITIVE_WORDS = {
-    "good", "great", "happy", "calm", "focused", "productive", "proud", "grateful",
-    "joy", "love", "optimistic", "excited", "progress", "better", "peaceful",
-}
-NEGATIVE_WORDS = {
-    "bad", "sad", "angry", "anxious", "stress", "stressed", "tired", "upset",
-    "overwhelmed", "worse", "panic", "irritated", "frustrated", "heavy", "low",
-}
+from app.config import settings
+from app.utils import _is_light_mode_enabled
 
 
-def _is_light_mode_enabled() -> bool:
-    value = os.getenv("JMT_LIGHT_MODE", "auto").strip().lower()
-    if value in {"1", "true", "yes", "on"}:
-        return True
-    if value in {"0", "false", "no", "off"}:
-        return False
-    if os.getenv("PYTEST_CURRENT_TEST"):
-        return False
-    return platform.system() == "Darwin" and platform.machine().lower() in {"arm64", "aarch64"}
+SENTIMENT_MODEL = settings.SENTIMENT_MODEL
+ZERO_SHOT_MODEL = settings.ZERO_SHOT_MODEL
+EMOTION_LABELS = settings.EMOTION_LABELS
+POSITIVE_WORDS = settings.POSITIVE_WORDS
+NEGATIVE_WORDS = settings.NEGATIVE_WORDS
 
 
 def _normalize_sentiment_label(label: str) -> str:
@@ -51,7 +36,7 @@ def get_sentiment_pipeline():
     # Import lazily so API startup does not depend on ML runtime initialization.
     from transformers import pipeline
 
-    return pipeline("sentiment-analysis", model=SENTIMENT_MODEL)
+    return pipeline("sentiment-analysis", model=settings.SENTIMENT_MODEL)
 
 
 @lru_cache(maxsize=1)
@@ -65,7 +50,7 @@ def get_zero_shot_pipeline():
     # Import lazily so API startup does not depend on ML runtime initialization.
     from transformers import pipeline
 
-    return pipeline("zero-shot-classification", model=ZERO_SHOT_MODEL)
+    return pipeline("zero-shot-classification", model=settings.ZERO_SHOT_MODEL)
 
 
 def analyze_sentiment(text: str) -> dict[str, Any]:

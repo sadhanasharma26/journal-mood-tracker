@@ -50,6 +50,13 @@ journal-mood-tracker/
 - Ollama installed and running locally
 - macOS/Linux/Windows (Apple Silicon supported)
 
+## Environment Variables
+Copy `.env.example` to `.env` and set values as needed:
+```bash
+cp .env.example .env
+```
+See `.env.example` for all supported variables and their defaults.
+
 ## Setup
 1. Create and activate a virtual environment.
 2. Install dependencies.
@@ -71,6 +78,17 @@ If using a different model, set:
 ```bash
 export OLLAMA_MODEL=qwen2.5:3b
 ```
+
+## Docker Setup
+Build and run both services with Docker Compose:
+```bash
+cp .env.example .env   # edit as needed
+docker compose up --build
+```
+- API: `http://localhost:8000`
+- Dashboard: `http://localhost:8501`
+
+`journal.db` is mounted as a volume so data persists across container restarts.
 
 ## Run The API
 ```bash

@@ -1,13 +1,13 @@
+from __future__ import annotations
+
 import math
+import os
 from datetime import date, timedelta
+from unittest.mock import MagicMock
 
 import numpy as np
 from fastapi.testclient import TestClient
-from sqlalchemy import create_engine
-from sqlalchemy.orm import sessionmaker
-
-from app.database import Base
-from app.main import app
+from app.main import app, require_local_or_token
 import app.main as main_module
 
 
@@ -17,21 +17,8 @@ def _unit_embedding() -> np.ndarray:
     return vec
 
 
-def test_entries_search_and_insights_endpoints(tmp_path, monkeypatch):
-    test_db_path = tmp_path / "api_integration.db"
-    test_engine = create_engine(
-        f"sqlite:///{test_db_path}",
-        connect_args={"check_same_thread": False},
-    )
-    TestingSessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=test_engine)
-    Base.metadata.create_all(bind=test_engine)
-
-    def override_get_db():
-        db = TestingSessionLocal()
-        try:
-            yield db
-        finally:
-            db.close()
+def test_entries_search_and_insights_endpoints(test_db, monkeypatch):
+    _engine, _TestingSessionLocal, override_get_db = test_db
 
     monkeypatch.setattr(main_module, "init_db", lambda: None)
     monkeypatch.setattr(
@@ -100,5 +87,87 @@ def test_entries_search_and_insights_endpoints(tmp_path, monkeypatch):
             response = client.get("/insights/monthly")
             assert response.status_code == 200
             assert response.json()["insight"] == "Mocked insight"
+    finally:
+        app.dependency_overrides.clear()
+
+
+def _make_request(host: str, token_header: str | None = None) -> MagicMock:
+    req = MagicMock()
+    req.client = MagicMock()
+    req.client.host = host
+    headers = {}
+    if token_header is not None:
+        headers["x-api-token"] = token_header
+    req.headers = headers
+    return req
+
+
+def test_remote_request_without_token_returns_403(monkeypatch):
+    monkeypatch.delenv("LOCAL_API_TOKEN", raising=False)
+    from fastapi import HTTPException
+    req = _make_request("203.0.113.5")
+    try:
+        require_local_or_token(req)
+        assert False, "expected HTTPException"
+    except HTTPException as exc:
+        assert exc.status_code == 403
+
+
+def test_remote_request_with_valid_token_passes(monkeypatch):
+    monkeypatch.setenv("LOCAL_API_TOKEN", "supersecrettoken123")
+    req = _make_request("203.0.113.5", token_header="supersecrettoken123")
+    require_local_or_token(req)
+
+
+def test_local_request_always_passes(monkeypatch):
+    monkeypatch.delenv("LOCAL_API_TOKEN", raising=False)
+    req = _make_request("127.0.0.1")
+    require_local_or_token(req)
+
+
+def test_put_entry_updates_record(test_db, monkeypatch):
+    _engine, _TestingSessionLocal, override_get_db = test_db
+
+    monkeypatch.setattr(main_module, "init_db", lambda: None)
+    monkeypatch.setattr(
+        main_module,
+        "analyze_entry",
+        lambda text: {
+            "sentiment_label": "negative",
+            "sentiment_score": 0.75,
+            "emotions": [{"emotion": "sadness", "score": 0.8}],
+        },
+    )
+    monkeypatch.setattr(main_module, "generate_embedding", lambda text: _unit_embedding())
+    app.dependency_overrides[main_module.get_db] = override_get_db
+
+    try:
+        with TestClient(app) as client:
+            day = date.today().strftime("%Y-%m-%d")
+            monkeypatch.setattr(
+                main_module,
+                "analyze_entry",
+                lambda text: {
+                    "sentiment_label": "positive",
+                    "sentiment_score": 0.9,
+                    "emotions": [{"emotion": "joy", "score": 0.9}],
+                },
+            )
+            client.post("/entries", json={"date": day, "text": "Original text."})
+
+            monkeypatch.setattr(
+                main_module,
+                "analyze_entry",
+                lambda text: {
+                    "sentiment_label": "negative",
+                    "sentiment_score": 0.75,
+                    "emotions": [{"emotion": "sadness", "score": 0.8}],
+                },
+            )
+            resp = client.put(f"/entries/{day}", json={"text": "Updated text, feeling sad."})
+            assert resp.status_code == 200
+            data = resp.json()
+            assert data["raw_text"] == "Updated text, feeling sad."
+            assert data["sentiment_label"] == "negative"
     finally:
         app.dependency_overrides.clear()

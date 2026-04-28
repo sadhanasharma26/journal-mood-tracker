@@ -1,4 +1,7 @@
+import pytest
+
 from app import insights, sentiment
+from app.embeddings import build_faiss_index, deserialize_embedding, generate_embedding
 
 
 def test_analyze_entry_with_mocked_pipelines(monkeypatch):
@@ -77,3 +80,18 @@ def test_generate_insight_handles_ollama_unavailable(monkeypatch):
     output = insights.generate_insight(entries, model="llama3")
     assert "ollama" in output.lower()
     assert "temporarily unavailable" in output.lower()
+
+
+def test_deserialize_embedding_with_corrupt_bytes():
+    with pytest.raises(ValueError):
+        deserialize_embedding(b"\x00" * 7)
+
+
+def test_build_faiss_index_empty():
+    result = build_faiss_index([])
+    assert result[1] == []
+
+
+def test_generate_embedding_empty_string():
+    with pytest.raises(ValueError):
+        generate_embedding("")

@@ -1,9 +1,13 @@
+from __future__ import annotations
+
 import json
 from datetime import date
 from html import escape
 
+import numpy as np
 import pandas as pd
 import plotly.express as px
+import plotly.graph_objects as go
 import requests
 import streamlit as st
 
@@ -388,6 +392,23 @@ def _as_safe_html(text: str) -> str:
     return escape(text).replace("\n", "<br>")
 
 
+with st.sidebar:
+    st.markdown("### Export")
+    if st.button("Download CSV Export"):
+        try:
+            resp = requests.get(f"{API_BASE_URL}/entries/export", timeout=30)
+            if resp.status_code == 200:
+                st.download_button(
+                    label="Save journal_export.csv",
+                    data=resp.content,
+                    file_name="journal_export.csv",
+                    mime="text/csv",
+                )
+            else:
+                st.error(f"Export failed: {resp.text}")
+        except requests.RequestException as exc:
+            st.error(f"Could not reach API: {exc}")
+
 entries = _fetch_entries()
 trend_label, avg_sentiment, trend_kind = _sentiment_snapshot(entries)
 
@@ -440,8 +461,8 @@ with col3:
         unsafe_allow_html=True,
     )
 
-home_tab, timeline_tab, heatmap_tab, weekly_tab, search_tab = st.tabs(
-    ["Home", "Timeline", "Emotion Heatmap", "Weekly Insight", "Search"]
+home_tab, timeline_tab, heatmap_tab, calendar_tab, weekly_tab, search_tab = st.tabs(
+    ["Home", "Timeline", "Emotion Heatmap", "Calendar View", "Weekly Insight", "Search"]
 )
 
 with home_tab:
@@ -451,7 +472,7 @@ with home_tab:
     selected_date = st.text_input("Date (YYYY-MM-DD)", value=default_date)
     text = st.text_area("How was your day?", height=180)
 
-    if st.button("Save Entry", type="primary"):
+    if st.button("Save Entry"):
         if not text.strip():
             st.warning("Please write something before submitting.")
         else:
@@ -531,6 +552,67 @@ with heatmap_tab:
         )
         st.plotly_chart(fig, use_container_width=True)
         st.caption(_stress_pattern_note(heatmap_df))
+    st.markdown("</section>", unsafe_allow_html=True)
+
+with calendar_tab:
+    st.markdown('<section class="section-card">', unsafe_allow_html=True)
+    st.subheader("Mood Calendar Heatmap")
+    if not entries:
+        st.info("No entries yet. Add data to view calendar.")
+    else:
+        cal_df = pd.DataFrame(entries)[["date", "sentiment_score", "sentiment_label"]]
+        cal_df["date"] = pd.to_datetime(cal_df["date"])
+        year = cal_df["date"].dt.year.max()
+        cal_df = cal_df[cal_df["date"].dt.year == year]
+
+        start = pd.Timestamp(f"{year}-01-01")
+        end = pd.Timestamp(f"{year}-12-31")
+        all_days = pd.date_range(start, end)
+        grid = pd.DataFrame({"date": all_days})
+        grid = grid.merge(cal_df, on="date", how="left")
+        grid["week"] = grid["date"].dt.isocalendar().week.astype(int)
+        grid["dow"] = grid["date"].dt.dayofweek
+
+        weeks = sorted(grid["week"].unique())
+        week_idx = {w: i for i, w in enumerate(weeks)}
+        grid["week_pos"] = grid["week"].map(week_idx)
+
+        z = np.full((7, len(weeks)), np.nan)
+        hover = np.full((7, len(weeks)), "", dtype=object)
+        for _, row in grid.iterrows():
+            wi = row["week_pos"]
+            di = row["dow"]
+            if not np.isnan(row["sentiment_score"]) if pd.notna(row["sentiment_score"]) else False:
+                z[di, wi] = row["sentiment_score"]
+                hover[di, wi] = f"{row['date'].strftime('%Y-%m-%d')}<br>{row['sentiment_label']}<br>score: {row['sentiment_score']:.2f}"
+
+        fig = go.Figure(go.Heatmap(
+            z=z,
+            text=hover,
+            hovertemplate="%{text}<extra></extra>",
+            colorscale=[[0, "#d14c4c"], [0.5, "#f5c842"], [1, "#0f9f80"]],
+            zmin=0,
+            zmax=1,
+            showscale=True,
+            colorbar=dict(title="Sentiment", tickfont=dict(color="#334155")),
+            xgap=2,
+            ygap=2,
+        ))
+        fig.update_layout(
+            title=f"Daily Sentiment — {year}",
+            xaxis=dict(title="Week", tickfont=dict(color="#334155")),
+            yaxis=dict(
+                tickmode="array",
+                tickvals=list(range(7)),
+                ticktext=["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"],
+                tickfont=dict(color="#334155"),
+            ),
+            plot_bgcolor="#ffffff",
+            paper_bgcolor="#ffffff",
+            font=dict(color="#1f2937"),
+            margin=dict(l=10, r=10, t=50, b=10),
+        )
+        st.plotly_chart(fig, use_container_width=True)
     st.markdown("</section>", unsafe_allow_html=True)
 
 with weekly_tab:
