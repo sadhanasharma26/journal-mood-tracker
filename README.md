@@ -11,17 +11,20 @@ Two interfaces — pick whichever suits you:
 
 ## Screenshots
 
-### Dashboard — New Entry
-![Dashboard home and new entry form](assets/screenshots/dashboard-home.png)
+### Home — New Entry
+![Home tab with mood selector and productivity slider](assets/screenshots/html-home.png)
 
-### Sentiment Timeline
-![Sentiment timeline view](assets/screenshots/new-entry-form.png)
+### Timeline
+![Timeline with mood-colored entry cards and filters](assets/screenshots/html-timeline.png)
 
-### Emotion Frequency by Day of Week
-![Insights view](assets/screenshots/insights-view.png)
+### Calendar View
+![Monthly calendar with mood dots per day](assets/screenshots/html-calendar.png)
 
-### Semantic Search
-![Entry list and search](assets/screenshots/entry-list.png)
+### Emotion Heatmap
+![90-day heatmap and mood distribution chart](assets/screenshots/html-heatmap.png)
+
+### Weekly Insight
+![Mood trend line chart and KPI cards](assets/screenshots/html-insight.png)
 
 ---
 
