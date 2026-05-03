@@ -33,3 +33,9 @@ journal.db
 
 # Jupyter
 .ipynb_checkpoints/
+
+# Claude Code
+.claude/
+
+# Project notes / scratch files
+todo

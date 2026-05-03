@@ -1,0 +1,1708 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="dark">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Journal + Mood</title>
+<link rel="preconnect" href="https://api.fontshare.com">
+<link href="https://api.fontshare.com/v2/css?f[]=cabinet-grotesk@700,800,900&f[]=satoshi@400,500,600&display=swap" rel="stylesheet">
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<script src="https://unpkg.com/lucide@latest"></script>
+<style>
+:root {
+  --bg: #0f0e0d;
+  --surface: #1a1917;
+  --surface2: #211f1d;
+  --surface-off: #2a2724;
+  --teal: #4f98a3;
+  --coral: #e8836a;
+  --yellow: #f5c842;
+  --mint: #7ecba0;
+  --lavender: #a98fd1;
+  --text: #e8e6e2;
+  --muted: #8a8784;
+  --faint: #5a5856;
+  --border: #2a2724;
+  --mood-awful: #e05252;
+  --mood-bad: #e87f43;
+  --mood-meh: #f5c842;
+  --mood-good: #7ecba0;
+  --mood-great: #4f98a3;
+  --radius: 14px;
+  --radius-sm: 8px;
+  --radius-pill: 999px;
+  --shadow: 0 4px 24px rgba(0,0,0,0.4);
+  --shadow-lg: 0 8px 40px rgba(0,0,0,0.6);
+  --font-display: 'Cabinet Grotesk', sans-serif;
+  --font-body: 'Satoshi', sans-serif;
+}
+[data-theme="light"] {
+  --bg: #f5f3ef;
+  --surface: #ffffff;
+  --surface2: #f0ede8;
+  --surface-off: #e8e4de;
+  --border: #e0dbd4;
+  --text: #1a1917;
+  --muted: #6b6866;
+  --faint: #9a9694;
+}
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+html { scroll-behavior: smooth; }
+body {
+  font-family: var(--font-body);
+  background: var(--bg);
+  color: var(--text);
+  min-height: 100vh;
+  font-size: 15px;
+  line-height: 1.6;
+  transition: background 0.3s, color 0.3s;
+}
+/* ---- HEADER ---- */
+.header {
+  position: sticky;
+  top: 0;
+  z-index: 100;
+  background: var(--bg);
+  border-bottom: 1px solid var(--border);
+  padding: 0 24px;
+}
+.header-inner {
+  max-width: 900px;
+  margin: 0 auto;
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  padding: 16px 0 12px;
+}
+.app-logo {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-shrink: 0;
+}
+.logo-icon {
+  width: 36px;
+  height: 36px;
+}
+.app-name {
+  font-family: var(--font-display);
+  font-weight: 800;
+  font-size: 20px;
+  letter-spacing: -0.5px;
+  color: var(--text);
+  white-space: nowrap;
+}
+.header-stats {
+  display: flex;
+  gap: 8px;
+  flex: 1;
+  justify-content: center;
+  flex-wrap: wrap;
+}
+.stat-chip {
+  background: var(--surface2);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-pill);
+  padding: 4px 12px;
+  font-size: 12px;
+  color: var(--muted);
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  white-space: nowrap;
+}
+.stat-chip strong { color: var(--text); font-weight: 600; }
+.theme-toggle {
+  background: var(--surface2);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-pill);
+  width: 40px;
+  height: 40px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  color: var(--muted);
+  transition: all 0.2s;
+  flex-shrink: 0;
+}
+.theme-toggle:hover { background: var(--surface-off); color: var(--text); }
+/* ---- NAV ---- */
+.nav-wrap {
+  background: var(--bg);
+  border-bottom: 1px solid var(--border);
+  padding: 0 24px;
+  position: sticky;
+  top: 73px;
+  z-index: 99;
+}
+.nav {
+  max-width: 900px;
+  margin: 0 auto;
+  display: flex;
+  gap: 4px;
+  padding: 10px 0;
+  overflow-x: auto;
+  scrollbar-width: none;
+}
+.nav::-webkit-scrollbar { display: none; }
+.nav-btn {
+  background: none;
+  border: 1px solid transparent;
+  border-radius: var(--radius-pill);
+  padding: 7px 16px;
+  font-family: var(--font-body);
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--muted);
+  cursor: pointer;
+  white-space: nowrap;
+  transition: all 0.18s;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+.nav-btn:hover { background: var(--surface2); color: var(--text); }
+.nav-btn.active {
+  background: var(--surface2);
+  border-color: var(--border);
+  color: var(--text);
+}
+.nav-btn .nav-dot {
+  width: 6px; height: 6px;
+  border-radius: 50%;
+  display: none;
+}
+.nav-btn.active .nav-dot { display: block; background: var(--teal); }
+/* ---- MAIN ---- */
+.main {
+  max-width: 900px;
+  margin: 0 auto;
+  padding: 32px 24px 80px;
+}
+.tab-pane { display: none; animation: fadeSlideIn 0.2s ease; }
+.tab-pane.active { display: block; }
+@keyframes fadeSlideIn {
+  from { opacity: 0; transform: translateY(8px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+/* ---- HOME TAB ---- */
+.home-greeting {
+  margin-bottom: 28px;
+}
+.home-greeting h1 {
+  font-family: var(--font-display);
+  font-weight: 900;
+  font-size: clamp(28px, 5vw, 40px);
+  letter-spacing: -1px;
+  line-height: 1.1;
+  margin-bottom: 6px;
+}
+.home-greeting p { color: var(--muted); font-size: 15px; }
+.form-card {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 28px;
+  margin-bottom: 16px;
+}
+.form-section-label {
+  font-family: var(--font-display);
+  font-weight: 700;
+  font-size: 13px;
+  text-transform: uppercase;
+  letter-spacing: 0.8px;
+  color: var(--muted);
+  margin-bottom: 14px;
+}
+/* Mood Selector */
+.mood-grid {
+  display: flex;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+.mood-card {
+  flex: 1;
+  min-width: 70px;
+  background: var(--surface2);
+  border: 2px solid var(--border);
+  border-radius: var(--radius);
+  padding: 14px 10px;
+  cursor: pointer;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+  transition: all 0.18s;
+  user-select: none;
+}
+.mood-card:hover { transform: translateY(-2px); }
+.mood-card .mood-emoji { font-size: 28px; transition: transform 0.18s; }
+.mood-card .mood-label { font-size: 11px; font-weight: 600; color: var(--muted); text-transform: uppercase; letter-spacing: 0.5px; }
+.mood-card.selected { transform: translateY(-3px) scale(1.04); }
+.mood-card[data-mood="awful"].selected { border-color: var(--mood-awful); box-shadow: 0 0 16px rgba(224,82,82,0.35); }
+.mood-card[data-mood="bad"].selected { border-color: var(--mood-bad); box-shadow: 0 0 16px rgba(232,127,67,0.35); }
+.mood-card[data-mood="meh"].selected { border-color: var(--mood-meh); box-shadow: 0 0 16px rgba(245,200,66,0.35); }
+.mood-card[data-mood="good"].selected { border-color: var(--mood-good); box-shadow: 0 0 16px rgba(126,203,160,0.35); }
+.mood-card[data-mood="great"].selected { border-color: var(--mood-great); box-shadow: 0 0 16px rgba(79,152,163,0.35); }
+/* Productivity Slider */
+.slider-wrap { padding: 8px 0; }
+.slider-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px; }
+.slider-val {
+  font-family: var(--font-display);
+  font-weight: 800;
+  font-size: 22px;
+  color: var(--teal);
+}
+input[type="range"] {
+  -webkit-appearance: none;
+  appearance: none;
+  width: 100%;
+  height: 6px;
+  background: var(--surface-off);
+  border-radius: var(--radius-pill);
+  outline: none;
+}
+input[type="range"]::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  appearance: none;
+  width: 22px;
+  height: 22px;
+  border-radius: 50%;
+  background: var(--teal);
+  cursor: pointer;
+  box-shadow: 0 0 0 4px rgba(79,152,163,0.2);
+  transition: box-shadow 0.18s, transform 0.18s;
+}
+input[type="range"]::-webkit-slider-thumb:hover {
+  box-shadow: 0 0 0 8px rgba(79,152,163,0.25);
+  transform: scale(1.1);
+}
+/* Collapsible Sections */
+.collapsible { margin-bottom: 8px; border: 1px solid var(--border); border-radius: var(--radius-sm); overflow: hidden; }
+.collapsible-header {
+  padding: 14px 16px;
+  cursor: pointer;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  background: var(--surface2);
+  font-weight: 600;
+  font-size: 14px;
+  transition: background 0.15s;
+  user-select: none;
+}
+.collapsible-header:hover { background: var(--surface-off); }
+.collapsible-header .chevron { transition: transform 0.2s; color: var(--muted); }
+.collapsible.open .chevron { transform: rotate(180deg); }
+.collapsible-body {
+  max-height: 0;
+  overflow: hidden;
+  transition: max-height 0.25s ease;
+}
+.collapsible.open .collapsible-body { max-height: 400px; }
+.collapsible-inner { padding: 14px 16px; background: var(--surface); }
+textarea.field {
+  width: 100%;
+  background: var(--surface2);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  padding: 12px;
+  color: var(--text);
+  font-family: var(--font-body);
+  font-size: 14px;
+  resize: vertical;
+  min-height: 80px;
+  transition: border-color 0.18s;
+}
+textarea.field:focus { outline: none; border-color: var(--teal); }
+textarea.field::placeholder { color: var(--faint); }
+/* Gratitude list */
+.gratitude-list { display: flex; flex-direction: column; gap: 6px; margin-bottom: 8px; }
+.gratitude-item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 14px;
+  padding: 6px 10px;
+  background: var(--surface2);
+  border-radius: var(--radius-sm);
+}
+.gratitude-item::before { content: "•"; color: var(--mint); font-size: 18px; }
+.gratitude-item-del { background: none; border: none; color: var(--faint); cursor: pointer; margin-left: auto; font-size: 16px; line-height: 1; transition: color 0.15s; }
+.gratitude-item-del:hover { color: var(--mood-awful); }
+input.field-inline {
+  width: 100%;
+  background: var(--surface2);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  padding: 10px 12px;
+  color: var(--text);
+  font-family: var(--font-body);
+  font-size: 14px;
+  transition: border-color 0.18s;
+}
+input.field-inline:focus { outline: none; border-color: var(--mint); }
+input.field-inline::placeholder { color: var(--faint); }
+/* Tags */
+.tags-wrap { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 10px; }
+.tag-pill {
+  background: var(--surface-off);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-pill);
+  padding: 4px 10px;
+  font-size: 12px;
+  font-weight: 500;
+  color: var(--muted);
+  display: flex;
+  align-items: center;
+  gap: 5px;
+}
+.tag-pill .tag-del { background: none; border: none; color: var(--faint); cursor: pointer; font-size: 14px; line-height: 1; transition: color 0.15s; }
+.tag-pill .tag-del:hover { color: var(--coral); }
+/* Save button */
+.btn-save {
+  width: 100%;
+  padding: 16px;
+  background: linear-gradient(135deg, var(--coral) 0%, #d4614a 100%);
+  border: none;
+  border-radius: var(--radius);
+  font-family: var(--font-display);
+  font-weight: 800;
+  font-size: 16px;
+  color: #fff;
+  cursor: pointer;
+  position: relative;
+  overflow: hidden;
+  transition: transform 0.18s, box-shadow 0.18s;
+  margin-top: 20px;
+}
+.btn-save:hover { transform: translateY(-2px); box-shadow: 0 8px 24px rgba(232,131,106,0.4); }
+.btn-save:active { transform: translateY(0); }
+.btn-save .ripple {
+  position: absolute;
+  border-radius: 50%;
+  background: rgba(255,255,255,0.3);
+  transform: scale(0);
+  animation: ripple 0.6s linear;
+  pointer-events: none;
+}
+@keyframes ripple {
+  to { transform: scale(4); opacity: 0; }
+}
+/* Confetti canvas */
+#confetti-canvas {
+  position: fixed;
+  top: 0; left: 0;
+  width: 100vw; height: 100vh;
+  pointer-events: none;
+  z-index: 9999;
+}
+/* ---- TIMELINE TAB ---- */
+.filter-bar { display: flex; gap: 6px; flex-wrap: wrap; margin-bottom: 20px; }
+.filter-pill {
+  background: var(--surface2);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-pill);
+  padding: 6px 14px;
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--muted);
+  cursor: pointer;
+  transition: all 0.15s;
+}
+.filter-pill:hover { background: var(--surface-off); color: var(--text); }
+.filter-pill.active { background: var(--surface-off); border-color: var(--teal); color: var(--text); }
+.entries-list { display: flex; flex-direction: column; gap: 12px; }
+.entry-card {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  overflow: hidden;
+  transition: box-shadow 0.18s, transform 0.18s;
+  cursor: pointer;
+}
+.entry-card:hover { box-shadow: var(--shadow); transform: translateY(-1px); }
+.entry-card.tumbling { animation: tumbleOff 0.4s ease-in forwards; }
+@keyframes tumbleOff {
+  to { transform: translateX(120%) rotate(15deg); opacity: 0; }
+}
+.entry-card-inner { display: flex; }
+.entry-mood-bar { width: 5px; flex-shrink: 0; }
+.entry-content { flex: 1; padding: 16px 18px; }
+.entry-header { display: flex; justify-content: space-between; align-items: flex-start; gap: 10px; margin-bottom: 8px; }
+.entry-date { font-size: 12px; color: var(--muted); font-weight: 500; }
+.entry-actions { display: flex; gap: 6px; }
+.entry-btn {
+  background: none;
+  border: none;
+  color: var(--faint);
+  cursor: pointer;
+  padding: 4px;
+  border-radius: var(--radius-sm);
+  transition: all 0.15s;
+  display: flex;
+  align-items: center;
+}
+.entry-btn:hover { color: var(--text); background: var(--surface2); }
+.entry-btn.del:hover { color: var(--mood-awful); }
+.entry-title {
+  font-family: var(--font-display);
+  font-weight: 700;
+  font-size: 16px;
+  margin-bottom: 8px;
+  line-height: 1.3;
+  color: var(--text);
+}
+.entry-badges { display: flex; gap: 6px; flex-wrap: wrap; }
+.badge {
+  border-radius: var(--radius-pill);
+  padding: 3px 10px;
+  font-size: 11px;
+  font-weight: 600;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+}
+.badge-mood { color: #fff; }
+.badge-prod { background: var(--surface-off); border: 1px solid var(--border); color: var(--muted); }
+.badge-tag { background: var(--surface2); border: 1px solid var(--border); color: var(--muted); }
+/* Expanded entry */
+.entry-expand {
+  max-height: 0;
+  overflow: hidden;
+  transition: max-height 0.3s ease;
+}
+.entry-card.expanded .entry-expand { max-height: 600px; }
+.entry-expand-inner {
+  padding: 0 18px 16px;
+  border-top: 1px solid var(--border);
+  margin-top: 0;
+  padding-top: 14px;
+}
+.expand-section { margin-bottom: 12px; }
+.expand-section h4 { font-size: 12px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.6px; color: var(--muted); margin-bottom: 6px; }
+.expand-section p { font-size: 14px; color: var(--text); line-height: 1.6; }
+.expand-gratitude { font-size: 14px; color: var(--text); }
+.expand-gratitude li { margin-left: 16px; margin-bottom: 3px; }
+/* ---- CALENDAR TAB ---- */
+.calendar-nav { display: flex; align-items: center; justify-content: space-between; margin-bottom: 20px; }
+.cal-month-title { font-family: var(--font-display); font-weight: 800; font-size: 22px; letter-spacing: -0.5px; }
+.cal-arrow {
+  background: var(--surface2);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-pill);
+  width: 36px; height: 36px;
+  display: flex; align-items: center; justify-content: center;
+  cursor: pointer; color: var(--muted);
+  transition: all 0.15s;
+}
+.cal-arrow:hover { background: var(--surface-off); color: var(--text); }
+.cal-grid-header { display: grid; grid-template-columns: repeat(7, 1fr); gap: 4px; margin-bottom: 6px; }
+.cal-day-name { text-align: center; font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.5px; color: var(--faint); padding: 4px 0; }
+.cal-grid { display: grid; grid-template-columns: repeat(7, 1fr); gap: 4px; }
+.cal-cell {
+  aspect-ratio: 1;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+  cursor: default;
+  transition: all 0.15s;
+  position: relative;
+  min-height: 52px;
+}
+.cal-cell.has-entry { cursor: pointer; }
+.cal-cell.has-entry:hover { transform: scale(1.08); box-shadow: var(--shadow); z-index: 2; }
+.cal-cell.today { border-color: var(--teal); }
+.cal-cell.empty { background: transparent; border-color: transparent; }
+.cal-cell .cal-num { font-size: 13px; font-weight: 600; color: var(--muted); }
+.cal-cell.today .cal-num { color: var(--teal); font-weight: 800; }
+.cal-cell.has-entry .cal-num { color: var(--text); }
+.cal-mood-dot { width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0; }
+.cal-legend { display: flex; gap: 12px; flex-wrap: wrap; margin-top: 16px; }
+.cal-legend-item { display: flex; align-items: center; gap: 5px; font-size: 12px; color: var(--muted); }
+.cal-legend-dot { width: 10px; height: 10px; border-radius: 50%; }
+/* Slide-up panel */
+.panel-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0,0,0,0.6);
+  z-index: 200;
+  display: none;
+  align-items: flex-end;
+  justify-content: center;
+}
+.panel-overlay.open { display: flex; animation: fadeIn 0.2s ease; }
+@keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
+.slide-panel {
+  background: var(--surface);
+  border-radius: var(--radius) var(--radius) 0 0;
+  width: 100%;
+  max-width: 900px;
+  max-height: 70vh;
+  overflow-y: auto;
+  padding: 24px;
+  animation: slideUp 0.3s ease;
+}
+@keyframes slideUp {
+  from { transform: translateY(100%); }
+  to { transform: translateY(0); }
+}
+.panel-close {
+  background: var(--surface2);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-pill);
+  padding: 6px 14px;
+  font-size: 13px;
+  color: var(--muted);
+  cursor: pointer;
+  float: right;
+  transition: all 0.15s;
+}
+.panel-close:hover { background: var(--surface-off); color: var(--text); }
+/* ---- HEATMAP TAB ---- */
+.heatmap-grid {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  overflow-x: auto;
+  padding-bottom: 8px;
+}
+.heatmap-row { display: flex; gap: 3px; }
+.heatmap-cell {
+  width: 14px;
+  height: 14px;
+  border-radius: 2px;
+  background: var(--surface-off);
+  cursor: default;
+  transition: transform 0.12s;
+  position: relative;
+  flex-shrink: 0;
+}
+.heatmap-cell.has-entry { cursor: pointer; }
+.heatmap-cell.has-entry:hover { transform: scale(1.3); z-index: 2; }
+.heatmap-tooltip {
+  position: fixed;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  padding: 8px 12px;
+  font-size: 12px;
+  color: var(--text);
+  pointer-events: none;
+  z-index: 9999;
+  display: none;
+  max-width: 200px;
+  box-shadow: var(--shadow);
+}
+.heatmap-section-title {
+  font-family: var(--font-display);
+  font-weight: 700;
+  font-size: 16px;
+  margin: 24px 0 14px;
+}
+.heatmap-months { display: flex; gap: 0; margin-bottom: 6px; font-size: 11px; color: var(--muted); }
+.chart-wrap { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); padding: 20px; }
+/* ---- WEEKLY INSIGHT TAB ---- */
+.insight-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 12px; margin: 20px 0; }
+.kpi-card {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 18px;
+}
+.kpi-label { font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.6px; color: var(--muted); margin-bottom: 6px; }
+.kpi-value { font-family: var(--font-display); font-weight: 900; font-size: 24px; letter-spacing: -0.5px; }
+.kpi-sub { font-size: 12px; color: var(--muted); margin-top: 4px; }
+.patterns-list { display: flex; flex-direction: column; gap: 8px; margin-bottom: 24px; }
+.pattern-item {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  padding: 12px 14px;
+  font-size: 14px;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+.tag-cloud { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; padding: 16px; background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); }
+.cloud-tag {
+  color: var(--muted);
+  font-weight: 600;
+  cursor: default;
+  transition: color 0.15s;
+}
+.cloud-tag:hover { color: var(--teal); }
+/* ---- SEARCH TAB ---- */
+.search-wrap {
+  position: relative;
+  margin-bottom: 20px;
+}
+.search-icon { position: absolute; left: 14px; top: 50%; transform: translateY(-50%); color: var(--muted); }
+input.search-input {
+  width: 100%;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 14px 14px 14px 44px;
+  color: var(--text);
+  font-family: var(--font-body);
+  font-size: 15px;
+  transition: border-color 0.18s;
+}
+input.search-input:focus { outline: none; border-color: var(--teal); }
+input.search-input::placeholder { color: var(--faint); }
+.search-results { display: flex; flex-direction: column; gap: 8px; }
+.search-empty { text-align: center; color: var(--muted); padding: 40px; font-size: 15px; }
+/* ---- SKELETON ---- */
+.skeleton {
+  background: linear-gradient(90deg, var(--surface2) 25%, var(--surface-off) 50%, var(--surface2) 75%);
+  background-size: 200% 100%;
+  animation: shimmer 1.5s infinite;
+  border-radius: var(--radius-sm);
+}
+@keyframes shimmer { to { background-position: -200% 0; } }
+.skeleton-card { height: 100px; margin-bottom: 10px; border-radius: var(--radius); }
+/* Reduced motion */
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after { animation-duration: 0.01ms !important; transition-duration: 0.01ms !important; }
+}
+/* ---- RESPONSIVE ---- */
+@media (max-width: 600px) {
+  .header-inner { flex-wrap: wrap; }
+  .header-stats { order: 3; width: 100%; justify-content: flex-start; }
+  .main { padding: 20px 16px 60px; }
+  .form-card { padding: 18px; }
+  .mood-card { min-width: 55px; padding: 10px 6px; }
+  .mood-card .mood-emoji { font-size: 22px; }
+}
+/* Section headings */
+.section-title {
+  font-family: var(--font-display);
+  font-weight: 800;
+  font-size: 22px;
+  letter-spacing: -0.5px;
+  margin-bottom: 4px;
+}
+.section-sub { color: var(--muted); font-size: 14px; margin-bottom: 20px; }
+/* Empty state */
+.empty-state {
+  text-align: center;
+  padding: 60px 20px;
+  color: var(--muted);
+}
+.empty-state .empty-icon { font-size: 48px; margin-bottom: 12px; }
+.empty-state h3 { font-family: var(--font-display); font-weight: 700; font-size: 18px; color: var(--text); margin-bottom: 6px; }
+</style>
+</head>
+<body>
+
+<canvas id="confetti-canvas"></canvas>
+<div class="heatmap-tooltip" id="heatmap-tooltip"></div>
+
+<!-- HEADER -->
+<header class="header">
+  <div class="header-inner">
+    <div class="app-logo">
+      <svg class="logo-icon" viewBox="0 0 36 36" fill="none" xmlns="http://www.w3.org/2000/svg">
+        <circle cx="18" cy="18" r="17" fill="var(--surface2)" stroke="var(--border)" stroke-width="1.5"/>
+        <path d="M18 8 C14 8, 10 12, 10 16 C10 22, 18 28, 18 28 C18 28, 26 22, 26 16 C26 12, 22 8, 18 8Z" fill="var(--teal)" opacity="0.8"/>
+        <path d="M20 14 L20 20 M17 17 L23 17" stroke="white" stroke-width="2" stroke-linecap="round"/>
+      </svg>
+      <span class="app-name">Journal + Mood</span>
+    </div>
+    <div class="header-stats" id="header-stats"></div>
+    <button class="theme-toggle" id="theme-toggle" aria-label="Toggle theme">
+      <i data-lucide="sun" width="16" height="16"></i>
+    </button>
+  </div>
+</header>
+
+<!-- NAV -->
+<nav class="nav-wrap">
+  <div class="nav" id="nav">
+    <button class="nav-btn active" data-tab="home">
+      <span class="nav-dot"></span>
+      <i data-lucide="feather" width="14" height="14"></i> Home
+    </button>
+    <button class="nav-btn" data-tab="timeline">
+      <span class="nav-dot"></span>
+      <i data-lucide="list" width="14" height="14"></i> Timeline
+    </button>
+    <button class="nav-btn" data-tab="calendar">
+      <span class="nav-dot"></span>
+      <i data-lucide="calendar" width="14" height="14"></i> Calendar
+    </button>
+    <button class="nav-btn" data-tab="heatmap">
+      <span class="nav-dot"></span>
+      <i data-lucide="grid" width="14" height="14"></i> Heatmap
+    </button>
+    <button class="nav-btn" data-tab="insight">
+      <span class="nav-dot"></span>
+      <i data-lucide="bar-chart-2" width="14" height="14"></i> Insight
+    </button>
+    <button class="nav-btn" data-tab="search">
+      <span class="nav-dot"></span>
+      <i data-lucide="search" width="14" height="14"></i> Search
+    </button>
+  </div>
+</nav>
+
+<!-- MAIN -->
+<main class="main">
+
+  <!-- HOME TAB -->
+  <div class="tab-pane active" id="tab-home">
+    <div class="home-greeting">
+      <h1 id="greeting-text">Good evening ✨</h1>
+      <p>How's your day going? Let's capture it.</p>
+    </div>
+    <div class="form-card">
+      <div class="form-section-label">How are you feeling?</div>
+      <div class="mood-grid" id="mood-grid">
+        <div class="mood-card" data-mood="awful" tabindex="0" role="button" aria-pressed="false">
+          <span class="mood-emoji">😫</span>
+          <span class="mood-label">Awful</span>
+        </div>
+        <div class="mood-card" data-mood="bad" tabindex="0" role="button" aria-pressed="false">
+          <span class="mood-emoji">😔</span>
+          <span class="mood-label">Bad</span>
+        </div>
+        <div class="mood-card" data-mood="meh" tabindex="0" role="button" aria-pressed="false">
+          <span class="mood-emoji">😐</span>
+          <span class="mood-label">Meh</span>
+        </div>
+        <div class="mood-card" data-mood="good" tabindex="0" role="button" aria-pressed="false">
+          <span class="mood-emoji">😊</span>
+          <span class="mood-label">Good</span>
+        </div>
+        <div class="mood-card" data-mood="great" tabindex="0" role="button" aria-pressed="false">
+          <span class="mood-emoji">🤩</span>
+          <span class="mood-label">Great</span>
+        </div>
+      </div>
+    </div>
+
+    <div class="form-card">
+      <div class="form-section-label">Productivity</div>
+      <div class="slider-wrap">
+        <div class="slider-header">
+          <span style="font-size:14px;color:var(--muted)">How productive were you?</span>
+          <span class="slider-val" id="slider-val">7/10</span>
+        </div>
+        <input type="range" id="prod-slider" min="1" max="10" value="7" aria-label="Productivity score">
+      </div>
+    </div>
+
+    <div class="form-card">
+      <div class="form-section-label">Journal Prompts</div>
+      <div class="collapsible open" id="col-day">
+        <div class="collapsible-header" onclick="toggleCollapsible('col-day')">
+          How was your day?
+          <i data-lucide="chevron-down" class="chevron" width="16" height="16"></i>
+        </div>
+        <div class="collapsible-body">
+          <div class="collapsible-inner">
+            <textarea class="field" id="field-day" placeholder="Write about your day..." rows="3"></textarea>
+          </div>
+        </div>
+      </div>
+      <div class="collapsible" id="col-gratitude">
+        <div class="collapsible-header" onclick="toggleCollapsible('col-gratitude')">
+          What are you grateful for?
+          <i data-lucide="chevron-down" class="chevron" width="16" height="16"></i>
+        </div>
+        <div class="collapsible-body">
+          <div class="collapsible-inner">
+            <div class="gratitude-list" id="gratitude-list"></div>
+            <input type="text" class="field-inline" id="gratitude-input" placeholder="Type and press Enter to add…">
+          </div>
+        </div>
+      </div>
+      <div class="collapsible" id="col-highlight">
+        <div class="collapsible-header" onclick="toggleCollapsible('col-highlight')">
+          Highlight of the day
+          <i data-lucide="chevron-down" class="chevron" width="16" height="16"></i>
+        </div>
+        <div class="collapsible-body">
+          <div class="collapsible-inner">
+            <textarea class="field" id="field-highlight" placeholder="What was the best part?" rows="2"></textarea>
+          </div>
+        </div>
+      </div>
+      <div class="collapsible" id="col-worries">
+        <div class="collapsible-header" onclick="toggleCollapsible('col-worries')">
+          Any thoughts or worries?
+          <i data-lucide="chevron-down" class="chevron" width="16" height="16"></i>
+        </div>
+        <div class="collapsible-body">
+          <div class="collapsible-inner">
+            <textarea class="field" id="field-worries" placeholder="What's on your mind?" rows="2"></textarea>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="form-card">
+      <div class="form-section-label">Tags</div>
+      <div class="tags-wrap" id="new-tags"></div>
+      <input type="text" class="field-inline" id="tag-input" placeholder="Type a tag and press Enter…">
+    </div>
+
+    <button class="btn-save" id="save-btn" onclick="saveEntry()">
+      Save Entry
+    </button>
+  </div>
+
+  <!-- TIMELINE TAB -->
+  <div class="tab-pane" id="tab-timeline">
+    <div class="section-title">Timeline</div>
+    <div class="section-sub">All your journal entries, chronologically.</div>
+    <div class="filter-bar" id="timeline-filters">
+      <button class="filter-pill active" data-filter="all">All</button>
+      <button class="filter-pill" data-filter="week">This Week</button>
+      <button class="filter-pill" data-filter="month">This Month</button>
+      <button class="filter-pill" data-filter-mood="great">🤩 Great</button>
+      <button class="filter-pill" data-filter-mood="good">😊 Good</button>
+      <button class="filter-pill" data-filter-mood="meh">😐 Meh</button>
+      <button class="filter-pill" data-filter-mood="bad">😔 Bad</button>
+      <button class="filter-pill" data-filter-mood="awful">😫 Awful</button>
+    </div>
+    <div id="entries-list" class="entries-list"></div>
+  </div>
+
+  <!-- CALENDAR TAB -->
+  <div class="tab-pane" id="tab-calendar">
+    <div class="calendar-nav">
+      <button class="cal-arrow" id="cal-prev" aria-label="Previous month">
+        <i data-lucide="chevron-left" width="16" height="16"></i>
+      </button>
+      <span class="cal-month-title" id="cal-month-title"></span>
+      <button class="cal-arrow" id="cal-next" aria-label="Next month">
+        <i data-lucide="chevron-right" width="16" height="16"></i>
+      </button>
+    </div>
+    <div class="cal-grid-header">
+      <div class="cal-day-name">Sun</div>
+      <div class="cal-day-name">Mon</div>
+      <div class="cal-day-name">Tue</div>
+      <div class="cal-day-name">Wed</div>
+      <div class="cal-day-name">Thu</div>
+      <div class="cal-day-name">Fri</div>
+      <div class="cal-day-name">Sat</div>
+    </div>
+    <div class="cal-grid" id="cal-grid"></div>
+    <div class="cal-legend">
+      <div class="cal-legend-item"><div class="cal-legend-dot" style="background:var(--mood-awful)"></div>Awful</div>
+      <div class="cal-legend-item"><div class="cal-legend-dot" style="background:var(--mood-bad)"></div>Bad</div>
+      <div class="cal-legend-item"><div class="cal-legend-dot" style="background:var(--mood-meh)"></div>Meh</div>
+      <div class="cal-legend-item"><div class="cal-legend-dot" style="background:var(--mood-good)"></div>Good</div>
+      <div class="cal-legend-item"><div class="cal-legend-dot" style="background:var(--mood-great)"></div>Great</div>
+    </div>
+  </div>
+
+  <!-- HEATMAP TAB -->
+  <div class="tab-pane" id="tab-heatmap">
+    <div class="section-title">Emotion Heatmap</div>
+    <div class="section-sub">Last 90 days of your emotional journey.</div>
+    <div class="chart-wrap">
+      <div id="heatmap-months" class="heatmap-months"></div>
+      <div id="heatmap-container"></div>
+    </div>
+    <div class="heatmap-section-title">Mood Distribution</div>
+    <div class="chart-wrap">
+      <canvas id="mood-dist-chart" height="160"></canvas>
+    </div>
+  </div>
+
+  <!-- INSIGHT TAB -->
+  <div class="tab-pane" id="tab-insight">
+    <div class="section-title">Weekly Insight</div>
+    <div class="section-sub">Your week at a glance.</div>
+    <div class="chart-wrap" style="margin-bottom:20px">
+      <canvas id="mood-trend-chart" height="140"></canvas>
+    </div>
+    <div class="insight-grid" id="insight-kpis"></div>
+    <div class="heatmap-section-title" style="margin-top:24px">Patterns Noticed</div>
+    <div class="patterns-list" id="patterns-list"></div>
+    <div class="heatmap-section-title">Tag Cloud</div>
+    <div class="tag-cloud" id="tag-cloud"></div>
+  </div>
+
+  <!-- SEARCH TAB -->
+  <div class="tab-pane" id="tab-search">
+    <div class="search-wrap">
+      <i data-lucide="search" class="search-icon" width="18" height="18"></i>
+      <input type="search" class="search-input" id="search-input" placeholder="Search entries, tags, dates…" oninput="renderSearch()">
+    </div>
+    <div id="search-results" class="search-results">
+      <div class="search-empty">
+        <div class="empty-icon">🔍</div>
+        <h3>Start typing to search</h3>
+        <p>Search across your journal text, tags, and dates</p>
+      </div>
+    </div>
+  </div>
+
+</main>
+
+<!-- SLIDE-UP PANEL -->
+<div class="panel-overlay" id="panel-overlay" onclick="closePanelIfOverlay(event)">
+  <div class="slide-panel" id="slide-panel">
+    <button class="panel-close" onclick="closePanel()">Close ✕</button>
+    <div id="panel-content"></div>
+  </div>
+</div>
+
+<script>
+// ===================== DATA =====================
+const MOOD_COLORS = { awful:'#e05252', bad:'#e87f43', meh:'#f5c842', good:'#7ecba0', great:'#4f98a3' };
+const MOOD_EMOJIS = { awful:'😫', bad:'😔', meh:'😐', good:'😊', great:'🤩' };
+const MOOD_VALS = { awful:1, bad:2, meh:3, good:4, great:5 };
+
+function dateStr(daysAgo) {
+  const d = new Date();
+  d.setDate(d.getDate() - daysAgo);
+  return d.toISOString().split('T')[0];
+}
+
+let entries = [
+  { id:1, date:dateStr(0), mood:'great', productivity:9, day:'Shipped the new feature today! The team was thrilled and the demo went perfectly. Late nights paid off.', gratitude:['Supportive teammates','Morning coffee ritual','Clear sky on the walk home'], highlight:'Successful product demo with applause from stakeholders', worries:'', tags:['work','creative'] },
+  { id:2, date:dateStr(1), mood:'good', productivity:7, day:'Went to the gym in the morning, had a solid workout. Afternoon was spent reading. Quiet but fulfilling.', gratitude:['My health','Good book recommendations','Fresh air'], highlight:'Finished two chapters of the novel I started last month', worries:'Need to reply to some emails I keep pushing off', tags:['fitness','reading'] },
+  { id:3, date:dateStr(2), mood:'meh', productivity:5, day:'Average day. Nothing special happened but nothing bad either. Worked through a backlog of smaller tasks.', gratitude:['Steady routine','Nice lunch','Evening walk'], highlight:'Cleared the inbox finally', worries:'Feeling a bit uninspired creatively', tags:['work'] },
+  { id:4, date:dateStr(3), mood:'great', productivity:8, day:'Had coffee with an old friend. We laughed a lot and caught up on everything. Felt genuinely energised.', gratitude:['Old friendships','Good coffee','Sunny weather'], highlight:'Reconnecting with someone I had not seen in two years', worries:'', tags:['social','health'] },
+  { id:5, date:dateStr(4), mood:'good', productivity:6, day:'Cooked a new recipe for dinner — Thai green curry from scratch. Turned out surprisingly well.', gratitude:['Fresh ingredients','Time to cook','Partner who ate the experiment willingly'], highlight:'The curry actually tasted like the restaurant version', worries:'Busy week ahead', tags:['health','family'] },
+  { id:6, date:dateStr(5), mood:'good', productivity:8, day:'Deep work session in the morning. Four hours of uninterrupted focus. Got so much done.', gratitude:['Good headphones','Strong coffee','Quiet apartment'], highlight:'Finished a project two days early', worries:'Might be overcommitting for next sprint', tags:['work'] },
+  { id:7, date:dateStr(6), mood:'bad', productivity:4, day:'Woke up tired and the feeling never went away. Dragged through meetings. Headache by afternoon.', gratitude:['Understanding manager','Cozy blanket','Herbal tea'], highlight:'Got a kind message from a colleague', worries:'Hope this fatigue is just temporary', tags:['health'] },
+  { id:8, date:dateStr(7), mood:'great', productivity:9, day:'Weekend hike with the group. Seven kilometres through the hills, perfect weather, great views from the top.', gratitude:['Healthy legs to hike with','Great hiking crew','Beautiful nature close to the city'], highlight:'Reaching the summit and seeing the valley below', worries:'', tags:['fitness','social'] },
+  { id:9, date:dateStr(8), mood:'good', productivity:7, day:'Spent Sunday afternoon at the farmers market then tidied the apartment. Felt very grounded.', gratitude:['Fresh produce','Tidy space peace of mind','Slow Sunday vibes'], highlight:'Found amazing sourdough at the market', worries:'', tags:['health','family'] },
+  { id:10, date:dateStr(9), mood:'meh', productivity:5, day:'Back to the grind after a good weekend. Work was fine, not exciting. Watched a documentary in the evening.', gratitude:['Employment','Netflix subscription','Comfortable couch'], highlight:'Interesting documentary about ocean exploration', worries:'Project deadline creeping closer', tags:['work','reading'] },
+  { id:11, date:dateStr(10), mood:'good', productivity:7, day:'Had a productive design session. The wireframes came together nicely. Team was in good spirits.', gratitude:['Creative colleagues','Tools that work','Hot lunch'], highlight:'Design feedback was overwhelmingly positive', worries:'', tags:['work','creative'] },
+  { id:12, date:dateStr(11), mood:'great', productivity:8, day:'Family dinner at mum\'s. Everyone around the table, lots of stories, good food. These evenings are rare and precious.', gratitude:['Family health and togetherness','Mum\'s cooking','Time to visit'], highlight:'Dad told his old travel stories again — never get old', worries:'', tags:['family','social'] },
+  { id:13, date:dateStr(12), mood:'good', productivity:6, day:'Morning run, five kilometres. Felt strong. Afternoon meeting was actually useful for once.', gratitude:['Running shoes','Progress over perfection','Useful meetings when they happen'], highlight:'Beat my 5k personal best by 45 seconds', worries:'Slight knee tension after run', tags:['fitness','work'] },
+  { id:14, date:dateStr(13), mood:'awful', productivity:3, day:'Rough day. Argument with a close friend that left me drained. Could not focus on anything meaningful.', gratitude:['Eventually calmed down','Friends who care enough to argue','Journal as outlet'], highlight:'Managed to eat a proper dinner', worries:'Need to resolve the tension properly', tags:['social'] },
+  { id:15, date:dateStr(14), mood:'good', productivity:7, day:'Read for three hours straight. Finished a whole book. That satisfying feeling when the last page turns.', gratitude:['Good authors who write good books','Quiet Sunday morning','Tea that stayed warm'], highlight:'That perfect final chapter landing', worries:'', tags:['reading'] },
+  { id:16, date:dateStr(15), mood:'great', productivity:9, day:'Team hackathon! Built a working prototype in six hours. The energy in the room was electric.', gratitude:['Creative problem-solving','Pizza at 2pm','Colleagues who become friends'], highlight:'Our prototype won the internal demo vote', worries:'', tags:['work','creative','social'] },
+  { id:17, date:dateStr(16), mood:'meh', productivity:4, day:'Tuesday slump hit hard. Did just enough. Spent the evening doing absolutely nothing productive and felt okay about it.', gratitude:['Rest when needed','Comfort TV','Not every day has to be great'], highlight:'Good episode of that show I\'ve been following', worries:'Feeling a bit stagnant creatively', tags:['health'] },
+  { id:18, date:dateStr(17), mood:'good', productivity:6, day:'Visited an art exhibition with a friend. Beautiful photography collection. Left feeling inspired.', gratitude:['Art accessible in the city','Inspired friends who suggest things','Evening light'], highlight:'A long-exposure photo that felt like a painting', worries:'', tags:['creative','social'] },
+  { id:19, date:dateStr(18), mood:'good', productivity:8, day:'Sorted out finances for the month. Boring but important. Also planned a small trip for next month.', gratitude:['Financial stability','Ability to plan ahead','Upcoming travel to look forward to'], highlight:'Finding a really good flight deal', worries:'', tags:['travel','work'] },
+  { id:20, date:dateStr(19), mood:'great', productivity:8, day:'Yoga class this morning followed by a green smoothie. Felt genuinely well in body and mind all day.', gratitude:['Good instructor','Healthy habits','Body feeling strong'], highlight:'Nail the warrior pose sequence for the first time', worries:'', tags:['fitness','health'] },
+  { id:21, date:dateStr(20), mood:'bad', productivity:4, day:'Stressful week catching up with me. Cancelled plans to rest. Felt guilty but also knew it was necessary.', gratitude:['Permission to rest','Quiet apartment','Comfort food'], highlight:'Guilt-free nap at 4pm', worries:'Worried about letting people down when cancelling', tags:['health','social'] },
+  { id:22, date:dateStr(21), mood:'good', productivity:7, day:'Late evening walk listening to a podcast. Three kilometres through the city at dusk. Really needed that.', gratitude:['Good podcasters','Safe walkable city','Change of environment after work'], highlight:'Catching the sunset over the rooftops', worries:'', tags:['health','fitness'] },
+  { id:23, date:dateStr(22), mood:'great', productivity:9, day:'Best writing session in months. Three pages of the short story flowed out. Characters finally feel real.', gratitude:['Creative blocks that eventually break','Silence','Inspiration from real people'], highlight:'A dialogue exchange that actually made me laugh', worries:'', tags:['creative','reading'] },
+  { id:24, date:dateStr(23), mood:'good', productivity:6, day:'Slow morning, caught up on messages and admin. Afternoon was better — worked on a side project.', gratitude:['Flexible work culture','Side project passion','Mid-day coffee reset'], highlight:'Made real progress on the side project UI', worries:'', tags:['work','creative'] },
+  { id:25, date:dateStr(24), mood:'meh', productivity:5, day:'Week stretched on. Rainy day, stayed in. Tried a new recipe that was just okay. Mid.', gratitude:['Warm home','Ingredients in the fridge','Weekends incoming'], highlight:'At least the kitchen smelled nice', worries:'Feel like wasting evenings lately', tags:['health','family'] },
+  { id:26, date:dateStr(25), mood:'great', productivity:8, day:'Had coffee with my mentor. Got great advice on the direction I\'ve been uncertain about. Clarity feels so good.', gratitude:['Good mentors who give time freely','Willingness to ask for help','Progress over ego'], highlight:'The one sentence of advice that reframed everything', worries:'', tags:['work','social'] },
+  { id:27, date:dateStr(26), mood:'good', productivity:7, day:'Bookshop browsing followed by a park lunch. Perfect micro-adventure without leaving the city.', gratitude:['Independent bookshops still existing','Park benches','Spontaneous afternoons'], highlight:'Finding a book I\'d been looking for for months', worries:'', tags:['reading','social'] },
+  { id:28, date:dateStr(27), mood:'good', productivity:8, day:'Focused deep work morning. Afternoon gym. Cooked dinner and called parents. Balanced day.', gratitude:['Good health','Parents who answer the phone','Leftover energy for evening'], highlight:'Long call with parents that felt unhurried', worries:'', tags:['work','family','fitness'] },
+  { id:29, date:dateStr(28), mood:'meh', productivity:5, day:'Nothing particularly noteworthy. Getting through the week. Watched a film, it was decent.', gratitude:['Ordinary days also count','Decent films','Progress on boring tasks'], highlight:'The film\'s twist ending I did not see coming', worries:'Need more social interactions', tags:['health'] },
+  { id:30, date:dateStr(29), mood:'great', productivity:9, day:'Monthly review done. Proud of what I accomplished this month. Set clear goals for next. Feeling motivated.', gratitude:['Growth mindset','Systems that work','This journaling habit'], highlight:'Realising how much ground I covered this month', worries:'', tags:['work','reading'] }
+];
+
+let nextId = 31;
+let selectedMood = null;
+let prodScore = 7;
+let newTags = [];
+let gratitudeItems = [];
+let calYear, calMonth;
+let timelineFilter = 'all';
+let timelineMoodFilter = null;
+let moodTrendChart = null;
+let moodDistChart = null;
+const tabsRendered = { heatmap: false, insight: false };
+
+// ===================== INIT =====================
+document.addEventListener('DOMContentLoaded', () => {
+  const now = new Date();
+  calYear = now.getFullYear();
+  calMonth = now.getMonth();
+
+  setGreeting();
+  updateStats();
+  setupNav();
+  setupMoodGrid();
+  setupSlider();
+  setupGratitudeInput();
+  setupTagInput();
+  setupThemeToggle();
+  setupTimelineFilters();
+  setupCalNav();
+  renderTimeline();
+  renderCalendar();
+  lucide.createIcons();
+});
+
+function setGreeting() {
+  const h = new Date().getHours();
+  const greet = h < 12 ? 'Good morning' : h < 17 ? 'Good afternoon' : 'Good evening';
+  document.getElementById('greeting-text').textContent = greet + ' ✨';
+}
+
+function updateStats() {
+  const total = entries.length;
+  const moodAvg = entries.length ? (entries.reduce((s,e) => s + MOOD_VALS[e.mood], 0) / entries.length).toFixed(1) : '—';
+  const streak = calcStreak();
+  const moodLabel = { '1':'Awful','2':'Bad','3':'Meh','4':'Good','5':'Great' };
+  document.getElementById('header-stats').innerHTML = `
+    <div class="stat-chip"><strong>${total}</strong> entries</div>
+    <div class="stat-chip">avg mood <strong>${moodAvg}/5</strong></div>
+    <div class="stat-chip">🔥 <strong>${streak}</strong> day streak</div>
+  `;
+}
+
+function calcStreak() {
+  const dates = [...new Set(entries.map(e => e.date))].sort().reverse();
+  if (!dates.length) return 0;
+  const today = new Date().toISOString().split('T')[0];
+  let streak = 0, cur = new Date(today);
+  for (let d of dates) {
+    const ds = cur.toISOString().split('T')[0];
+    if (d === ds) { streak++; cur.setDate(cur.getDate()-1); }
+    else if (d < ds) break;
+  }
+  return streak;
+}
+
+// ===================== NAV =====================
+function setupNav() {
+  document.querySelectorAll('.nav-btn').forEach(btn => {
+    btn.addEventListener('click', () => {
+      const tab = btn.dataset.tab;
+      document.querySelectorAll('.nav-btn').forEach(b => b.classList.remove('active'));
+      btn.classList.add('active');
+      document.querySelectorAll('.tab-pane').forEach(p => p.classList.remove('active'));
+      document.getElementById('tab-' + tab).classList.add('active');
+      if (tab === 'timeline') renderTimeline();
+      if (tab === 'calendar') renderCalendar();
+      if (tab === 'heatmap') { renderHeatmap(); tabsRendered.heatmap = true; }
+      if (tab === 'insight') { renderInsight(); tabsRendered.insight = true; }
+      lucide.createIcons();
+    });
+  });
+}
+
+// ===================== MOOD GRID =====================
+function setupMoodGrid() {
+  document.querySelectorAll('.mood-card').forEach(card => {
+    card.addEventListener('click', () => {
+      document.querySelectorAll('.mood-card').forEach(c => { c.classList.remove('selected'); c.setAttribute('aria-pressed','false'); });
+      card.classList.add('selected');
+      card.setAttribute('aria-pressed','true');
+      selectedMood = card.dataset.mood;
+    });
+    card.addEventListener('keydown', e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); card.click(); } });
+  });
+}
+
+// ===================== SLIDER =====================
+function setupSlider() {
+  const slider = document.getElementById('prod-slider');
+  const val = document.getElementById('slider-val');
+  slider.addEventListener('input', () => { prodScore = +slider.value; val.textContent = prodScore + '/10'; });
+}
+
+// ===================== COLLAPSIBLE =====================
+function toggleCollapsible(id) {
+  document.getElementById(id).classList.toggle('open');
+  lucide.createIcons();
+}
+
+// ===================== GRATITUDE =====================
+function setupGratitudeInput() {
+  document.getElementById('gratitude-input').addEventListener('keydown', e => {
+    if (e.key === 'Enter' && e.target.value.trim()) {
+      e.preventDefault();
+      gratitudeItems.push(e.target.value.trim());
+      e.target.value = '';
+      renderGratitudeList();
+    }
+  });
+}
+function renderGratitudeList() {
+  const list = document.getElementById('gratitude-list');
+  list.innerHTML = gratitudeItems.map((item, i) => `
+    <div class="gratitude-item">
+      ${item}
+      <button class="gratitude-item-del" onclick="removeGratitude(${i})" aria-label="Remove">✕</button>
+    </div>
+  `).join('');
+}
+function removeGratitude(i) { gratitudeItems.splice(i,1); renderGratitudeList(); }
+
+// ===================== TAGS =====================
+function setupTagInput() {
+  document.getElementById('tag-input').addEventListener('keydown', e => {
+    if (e.key === 'Enter' && e.target.value.trim()) {
+      e.preventDefault();
+      const tag = e.target.value.trim().toLowerCase();
+      if (!newTags.includes(tag)) { newTags.push(tag); renderNewTags(); }
+      e.target.value = '';
+    }
+  });
+}
+function renderNewTags() {
+  document.getElementById('new-tags').innerHTML = newTags.map((t,i) => `
+    <span class="tag-pill">#${t} <button class="tag-del" onclick="removeTag(${i})" aria-label="Remove tag">✕</button></span>
+  `).join('');
+}
+function removeTag(i) { newTags.splice(i,1); renderNewTags(); }
+
+// ===================== SAVE ENTRY =====================
+function saveEntry() {
+  if (!selectedMood) { alert('Please select a mood first!'); return; }
+  const day = document.getElementById('field-day').value.trim();
+  const highlight = document.getElementById('field-highlight').value.trim();
+  const worries = document.getElementById('field-worries').value.trim();
+  const entry = {
+    id: nextId++,
+    date: new Date().toISOString().split('T')[0],
+    mood: selectedMood,
+    productivity: prodScore,
+    day: day || 'Another day logged.',
+    gratitude: [...gratitudeItems],
+    highlight: highlight,
+    worries: worries,
+    tags: [...newTags]
+  };
+  entries.unshift(entry);
+
+  const btn = document.getElementById('save-btn');
+  addRipple(btn);
+  fireConfetti(MOOD_COLORS[selectedMood]);
+
+  // Reset form
+  selectedMood = null;
+  prodScore = 7;
+  gratitudeItems = [];
+  newTags = [];
+  document.querySelectorAll('.mood-card').forEach(c => { c.classList.remove('selected'); c.setAttribute('aria-pressed','false'); });
+  document.getElementById('prod-slider').value = 7;
+  document.getElementById('slider-val').textContent = '7/10';
+  document.getElementById('field-day').value = '';
+  document.getElementById('field-highlight').value = '';
+  document.getElementById('field-worries').value = '';
+  document.getElementById('new-tags').innerHTML = '';
+  document.getElementById('gratitude-list').innerHTML = '';
+
+  updateStats();
+  if (tabsRendered.heatmap) renderHeatmap();
+  if (tabsRendered.insight) renderInsight();
+}
+
+function addRipple(btn) {
+  const ripple = document.createElement('span');
+  ripple.classList.add('ripple');
+  ripple.style.width = ripple.style.height = '200px';
+  ripple.style.left = '50%';
+  ripple.style.top = '50%';
+  ripple.style.transform = 'translate(-50%,-50%) scale(0)';
+  ripple.style.position = 'absolute';
+  btn.appendChild(ripple);
+  setTimeout(() => ripple.remove(), 700);
+}
+
+// ===================== CONFETTI =====================
+function fireConfetti(color) {
+  const canvas = document.getElementById('confetti-canvas');
+  const ctx = canvas.getContext('2d');
+  canvas.width = window.innerWidth;
+  canvas.height = window.innerHeight;
+  const particles = Array.from({length:20}, () => ({
+    x: window.innerWidth / 2,
+    y: window.innerHeight * 0.75,
+    vx: (Math.random()-0.5) * 14,
+    vy: -(Math.random() * 10 + 6),
+    size: Math.random() * 8 + 4,
+    color: [color,'#f5c842','#7ecba0','#a98fd1'][Math.floor(Math.random()*4)],
+    rot: Math.random() * Math.PI * 2,
+    rotV: (Math.random()-0.5) * 0.3,
+    alpha: 1
+  }));
+  let frame = 0;
+  function draw() {
+    ctx.clearRect(0,0,canvas.width,canvas.height);
+    let alive = false;
+    particles.forEach(p => {
+      p.x += p.vx; p.y += p.vy; p.vy += 0.4; p.rot += p.rotV; p.alpha -= 0.015;
+      if (p.alpha > 0) { alive = true; }
+      ctx.save();
+      ctx.globalAlpha = Math.max(0, p.alpha);
+      ctx.translate(p.x, p.y);
+      ctx.rotate(p.rot);
+      ctx.fillStyle = p.color;
+      ctx.fillRect(-p.size/2, -p.size/4, p.size, p.size/2);
+      ctx.restore();
+    });
+    if (alive && frame++ < 120) requestAnimationFrame(draw);
+    else ctx.clearRect(0,0,canvas.width,canvas.height);
+  }
+  draw();
+}
+
+// ===================== THEME TOGGLE =====================
+function setupThemeToggle() {
+  document.getElementById('theme-toggle').addEventListener('click', () => {
+    const html = document.documentElement;
+    const isDark = html.getAttribute('data-theme') === 'dark';
+    html.setAttribute('data-theme', isDark ? 'light' : 'dark');
+    lucide.createIcons();
+  });
+}
+
+// ===================== TIMELINE =====================
+function setupTimelineFilters() {
+  document.querySelectorAll('#timeline-filters .filter-pill').forEach(pill => {
+    pill.addEventListener('click', () => {
+      if (pill.dataset.filter) {
+        document.querySelectorAll('#timeline-filters [data-filter]').forEach(p => p.classList.remove('active'));
+        pill.classList.add('active');
+        timelineFilter = pill.dataset.filter;
+        timelineMoodFilter = null;
+        document.querySelectorAll('#timeline-filters [data-filter-mood]').forEach(p => p.classList.remove('active'));
+      } else if (pill.dataset.filterMood) {
+        const mood = pill.dataset.filterMood;
+        if (timelineMoodFilter === mood) {
+          timelineMoodFilter = null;
+          pill.classList.remove('active');
+        } else {
+          document.querySelectorAll('#timeline-filters [data-filter-mood]').forEach(p => p.classList.remove('active'));
+          pill.classList.add('active');
+          timelineMoodFilter = mood;
+        }
+      }
+      renderTimeline();
+    });
+  });
+}
+
+function getFilteredEntries() {
+  let filtered = [...entries].sort((a,b) => b.date.localeCompare(a.date));
+  if (timelineFilter === 'week') {
+    const cutoff = new Date(); cutoff.setDate(cutoff.getDate()-7);
+    filtered = filtered.filter(e => new Date(e.date) >= cutoff);
+  } else if (timelineFilter === 'month') {
+    const cutoff = new Date(); cutoff.setDate(cutoff.getDate()-30);
+    filtered = filtered.filter(e => new Date(e.date) >= cutoff);
+  }
+  if (timelineMoodFilter) filtered = filtered.filter(e => e.mood === timelineMoodFilter);
+  return filtered;
+}
+
+function renderTimeline() {
+  const list = document.getElementById('entries-list');
+  const filtered = getFilteredEntries();
+  if (!filtered.length) {
+    list.innerHTML = '<div class="empty-state"><div class="empty-icon">📓</div><h3>No entries found</h3><p>Try a different filter or add a new entry.</p></div>';
+    return;
+  }
+  list.innerHTML = filtered.map(e => buildEntryCard(e)).join('');
+  lucide.createIcons();
+}
+
+function buildEntryCard(e) {
+  const title = e.day ? (e.day.split(/[.!?]/)[0].trim().slice(0,80) || 'Untitled') : 'Untitled';
+  const dateLabel = new Date(e.date + 'T12:00:00').toLocaleDateString('en-US', {weekday:'short', month:'short', day:'numeric', year:'numeric'});
+  const tagBadges = e.tags.map(t => `<span class="badge badge-tag">#${t}</span>`).join('');
+  return `
+    <div class="entry-card" id="card-${e.id}" onclick="toggleCard(${e.id})">
+      <div class="entry-card-inner">
+        <div class="entry-mood-bar" style="background:${MOOD_COLORS[e.mood]}"></div>
+        <div class="entry-content">
+          <div class="entry-header">
+            <span class="entry-date">${dateLabel}</span>
+            <div class="entry-actions" onclick="event.stopPropagation()">
+              <button class="entry-btn del" onclick="deleteEntry(${e.id})" aria-label="Delete entry"><i data-lucide="trash-2" width="14" height="14"></i></button>
+            </div>
+          </div>
+          <div class="entry-title">${title}</div>
+          <div class="entry-badges">
+            <span class="badge badge-mood" style="background:${MOOD_COLORS[e.mood]}">${MOOD_EMOJIS[e.mood]} ${e.mood.charAt(0).toUpperCase()+e.mood.slice(1)}</span>
+            <span class="badge badge-prod">⚡ ${e.productivity}/10</span>
+            ${tagBadges}
+          </div>
+        </div>
+      </div>
+      <div class="entry-expand">
+        <div class="entry-expand-inner">
+          ${e.day ? `<div class="expand-section"><h4>Day</h4><p>${e.day}</p></div>` : ''}
+          ${e.gratitude && e.gratitude.length ? `<div class="expand-section"><h4>Grateful for</h4><ul class="expand-gratitude">${e.gratitude.map(g=>`<li>${g}</li>`).join('')}</ul></div>` : ''}
+          ${e.highlight ? `<div class="expand-section"><h4>Highlight</h4><p>${e.highlight}</p></div>` : ''}
+          ${e.worries ? `<div class="expand-section"><h4>Thoughts &amp; Worries</h4><p>${e.worries}</p></div>` : ''}
+        </div>
+      </div>
+    </div>
+  `;
+}
+
+function toggleCard(id) {
+  const card = document.getElementById('card-'+id);
+  if (card) card.classList.toggle('expanded');
+}
+
+function deleteEntry(id) {
+  const card = document.getElementById('card-'+id);
+  if (card) {
+    card.classList.add('tumbling');
+    setTimeout(() => {
+      entries = entries.filter(e => e.id !== id);
+      renderTimeline();
+      renderCalendar();
+      updateStats();
+      if (tabsRendered.heatmap) renderHeatmap();
+      if (tabsRendered.insight) renderInsight();
+    }, 420);
+  }
+}
+
+// ===================== CALENDAR =====================
+function setupCalNav() {
+  document.getElementById('cal-prev').addEventListener('click', () => {
+    calMonth--;
+    if (calMonth < 0) { calMonth = 11; calYear--; }
+    renderCalendar();
+    lucide.createIcons();
+  });
+  document.getElementById('cal-next').addEventListener('click', () => {
+    calMonth++;
+    if (calMonth > 11) { calMonth = 0; calYear++; }
+    renderCalendar();
+    lucide.createIcons();
+  });
+}
+
+function renderCalendar() {
+  const months = ['January','February','March','April','May','June','July','August','September','October','November','December'];
+  document.getElementById('cal-month-title').textContent = months[calMonth] + ' ' + calYear;
+  const grid = document.getElementById('cal-grid');
+  const today = new Date().toISOString().split('T')[0];
+  const first = new Date(calYear, calMonth, 1).getDay();
+  const days = new Date(calYear, calMonth+1, 0).getDate();
+  const entryMap = {};
+  entries.forEach(e => {
+    const d = new Date(e.date + 'T12:00:00');
+    if (d.getFullYear() === calYear && d.getMonth() === calMonth) {
+      const key = d.getDate();
+      if (!entryMap[key]) entryMap[key] = e;
+    }
+  });
+  let html = '';
+  for (let i=0; i<first; i++) html += '<div class="cal-cell empty"></div>';
+  for (let d=1; d<=days; d++) {
+    const dateS = `${calYear}-${String(calMonth+1).padStart(2,'0')}-${String(d).padStart(2,'0')}`;
+    const entry = entryMap[d];
+    const isToday = dateS === today;
+    html += `<div class="cal-cell ${entry ? 'has-entry' : ''} ${isToday ? 'today' : ''}" ${entry ? `onclick="openPanel(${entry.id})"` : ''}>
+      <span class="cal-num">${d}</span>
+      ${entry ? `<div class="cal-mood-dot" style="background:${MOOD_COLORS[entry.mood]}"></div>` : ''}
+    </div>`;
+  }
+  grid.innerHTML = html;
+}
+
+// ===================== PANEL =====================
+function openPanel(entryId) {
+  const e = entries.find(x => x.id === entryId);
+  if (!e) return;
+  const dateLabel = new Date(e.date + 'T12:00:00').toLocaleDateString('en-US', {weekday:'long', month:'long', day:'numeric', year:'numeric'});
+  document.getElementById('panel-content').innerHTML = `
+    <div style="margin-bottom:16px">
+      <div style="font-size:12px;color:var(--muted);margin-bottom:6px">${dateLabel}</div>
+      <div style="font-family:var(--font-display);font-weight:800;font-size:20px;margin-bottom:10px">${e.day ? e.day.split(/[.!?]/)[0].trim() : 'Entry'}</div>
+      <div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:14px">
+        <span class="badge badge-mood" style="background:${MOOD_COLORS[e.mood]}">${MOOD_EMOJIS[e.mood]} ${e.mood.charAt(0).toUpperCase()+e.mood.slice(1)}</span>
+        <span class="badge badge-prod">⚡ ${e.productivity}/10</span>
+        ${e.tags.map(t=>`<span class="badge badge-tag">#${t}</span>`).join('')}
+      </div>
+    </div>
+    ${e.day ? `<div class="expand-section"><h4 style="font-size:12px;font-weight:700;text-transform:uppercase;letter-spacing:.6px;color:var(--muted);margin-bottom:6px">Day</h4><p style="font-size:14px;line-height:1.7">${e.day}</p></div><br>` : ''}
+    ${e.gratitude && e.gratitude.length ? `<div class="expand-section"><h4 style="font-size:12px;font-weight:700;text-transform:uppercase;letter-spacing:.6px;color:var(--muted);margin-bottom:6px">Grateful for</h4><ul style="font-size:14px;padding-left:18px">${e.gratitude.map(g=>`<li style="margin-bottom:4px">${g}</li>`).join('')}</ul></div><br>` : ''}
+    ${e.highlight ? `<div class="expand-section"><h4 style="font-size:12px;font-weight:700;text-transform:uppercase;letter-spacing:.6px;color:var(--muted);margin-bottom:6px">Highlight</h4><p style="font-size:14px;line-height:1.7">${e.highlight}</p></div><br>` : ''}
+    ${e.worries ? `<div class="expand-section"><h4 style="font-size:12px;font-weight:700;text-transform:uppercase;letter-spacing:.6px;color:var(--muted);margin-bottom:6px">Thoughts &amp; Worries</h4><p style="font-size:14px;line-height:1.7">${e.worries}</p></div>` : ''}
+  `;
+  document.getElementById('panel-overlay').classList.add('open');
+}
+function closePanel() { document.getElementById('panel-overlay').classList.remove('open'); }
+function closePanelIfOverlay(e) { if (e.target === document.getElementById('panel-overlay')) closePanel(); }
+
+// ===================== HEATMAP =====================
+function renderHeatmap() {
+  const container = document.getElementById('heatmap-container');
+  const tooltip = document.getElementById('heatmap-tooltip');
+  const today = new Date();
+  const days = [];
+  for (let i=89; i>=0; i--) {
+    const d = new Date(today);
+    d.setDate(d.getDate()-i);
+    days.push(d.toISOString().split('T')[0]);
+  }
+  const entryMap = {};
+  entries.forEach(e => { entryMap[e.date] = e; });
+
+  // Build weeks (columns)
+  const firstDay = new Date(days[0]).getDay();
+  const paddedDays = [...Array(firstDay).fill(null), ...days];
+  const weeks = [];
+  for (let i=0; i<paddedDays.length; i+=7) weeks.push(paddedDays.slice(i,i+7));
+
+  // Month labels aligned to week columns
+  const monthAtWeek = {};
+  days.forEach(d => {
+    const dt = new Date(d + 'T12:00:00');
+    if (dt.getDate() <= 7) {
+      const mn = dt.toLocaleDateString('en-US', { month: 'short' });
+      const weekIdx = Math.floor((days.indexOf(d) + firstDay) / 7);
+      if (!(mn in monthAtWeek)) monthAtWeek[weekIdx] = mn;
+    }
+  });
+  const totalWeeks = weeks.length;
+  let monthHTML = '';
+  for (let w = 0; w < totalWeeks; w++) {
+    monthHTML += `<span style="display:inline-block;width:17px;font-size:10px;color:var(--muted);overflow:visible;white-space:nowrap">${monthAtWeek[w] || ''}</span>`;
+  }
+  document.getElementById('heatmap-months').innerHTML = monthHTML;
+
+  container.innerHTML = `<div style="display:flex;gap:3px">${
+    weeks.map(week => `<div style="display:flex;flex-direction:column;gap:3px">${
+      week.map(d => {
+        if (!d) return `<div style="width:14px;height:14px"></div>`;
+        const e = entryMap[d];
+        const color = e ? MOOD_COLORS[e.mood] : 'var(--surface-off)';
+        return `<div class="heatmap-cell ${e?'has-entry':''}" style="background:${color}" data-date="${d}" data-id="${e?e.id:''}"></div>`;
+      }).join('')
+    }</div>`).join('')
+  }</div>`;
+
+  container.querySelectorAll('.heatmap-cell.has-entry').forEach(cell => {
+    cell.addEventListener('mousemove', ev => {
+      const e = entries.find(x => x.id === +cell.dataset.id);
+      if (!e) return;
+      const d = new Date(e.date+'T12:00:00').toLocaleDateString('en-US',{month:'short',day:'numeric',year:'numeric'});
+      tooltip.innerHTML = `<strong>${d}</strong><br>${MOOD_EMOJIS[e.mood]} ${e.mood.charAt(0).toUpperCase()+e.mood.slice(1)}<br><span style="color:var(--muted)">${e.day ? e.day.slice(0,60)+'…' : ''}</span>`;
+      tooltip.style.display = 'block';
+      tooltip.style.left = (ev.clientX + 12) + 'px';
+      tooltip.style.top = (ev.clientY - 10) + 'px';
+    });
+    cell.addEventListener('mouseleave', () => { tooltip.style.display = 'none'; });
+  });
+
+  // Mood distribution chart
+  const counts = {awful:0, bad:0, meh:0, good:0, great:0};
+  entries.forEach(e => counts[e.mood]++);
+  const total = entries.length || 1;
+  if (moodDistChart) moodDistChart.destroy();
+  const ctx = document.getElementById('mood-dist-chart').getContext('2d');
+  moodDistChart = new Chart(ctx, {
+    type: 'bar',
+    data: {
+      labels: ['Awful','Bad','Meh','Good','Great'],
+      datasets: [{
+        data: [counts.awful, counts.bad, counts.meh, counts.good, counts.great],
+        backgroundColor: [MOOD_COLORS.awful, MOOD_COLORS.bad, MOOD_COLORS.meh, MOOD_COLORS.good, MOOD_COLORS.great],
+        borderRadius: 6,
+        borderSkipped: false,
+      }]
+    },
+    options: {
+      indexAxis: 'y',
+      responsive: true,
+      plugins: {
+        legend: { display: false },
+        tooltip: {
+          callbacks: {
+            label: ctx => ` ${ctx.raw} entries (${Math.round(ctx.raw/total*100)}%)`
+          }
+        }
+      },
+      scales: {
+        x: { grid: { color: 'rgba(128,128,128,0.15)' }, ticks: { color: '#8a8784' } },
+        y: { grid: { display: false }, ticks: { color: '#8a8784' } }
+      }
+    }
+  });
+}
+
+// ===================== WEEKLY INSIGHT =====================
+function renderInsight() {
+  const today = new Date();
+  const last7 = Array.from({length:7}, (_,i) => {
+    const d = new Date(today);
+    d.setDate(d.getDate() - (6-i));
+    return d.toISOString().split('T')[0];
+  });
+  const labels = last7.map(d => new Date(d+'T12:00:00').toLocaleDateString('en-US',{weekday:'short'}));
+  const vals = last7.map(d => {
+    const e = entries.find(x => x.date === d);
+    return e ? MOOD_VALS[e.mood] : null;
+  });
+  const colors = last7.map(d => {
+    const e = entries.find(x => x.date === d);
+    return e ? MOOD_COLORS[e.mood] : 'transparent';
+  });
+
+  if (moodTrendChart) moodTrendChart.destroy();
+  const ctx = document.getElementById('mood-trend-chart').getContext('2d');
+  moodTrendChart = new Chart(ctx, {
+    type: 'line',
+    data: {
+      labels,
+      datasets: [{
+        data: vals,
+        borderColor: '#4f98a3',
+        backgroundColor: 'rgba(79,152,163,0.12)',
+        pointBackgroundColor: colors,
+        pointBorderColor: colors,
+        pointRadius: 7,
+        pointHoverRadius: 9,
+        borderWidth: 2.5,
+        tension: 0.4,
+        fill: true,
+        spanGaps: true,
+      }]
+    },
+    options: {
+      responsive: true,
+      plugins: {
+        legend: { display: false },
+        tooltip: {
+          callbacks: {
+            label: ctx => {
+              const map = ['','Awful','Bad','Meh','Good','Great'];
+              return ` ${map[ctx.raw] || '—'}`;
+            }
+          }
+        }
+      },
+      scales: {
+        y: { min:0, max:6, grid: { color:'rgba(128,128,128,0.15)' }, ticks: { color:'#8a8784', callback: v => ['','Awful','Bad','Meh','Good','Great'][v]||'' } },
+        x: { grid: { display: false }, ticks: { color: '#8a8784' } }
+      }
+    }
+  });
+
+  // KPI cards
+  const weekEntries = entries.filter(e => last7.includes(e.date));
+  const bestDay = weekEntries.length ? weekEntries.reduce((a,b) => MOOD_VALS[a.mood] > MOOD_VALS[b.mood] ? a : b) : null;
+  const moodCounts = {awful:0,bad:0,meh:0,good:0,great:0};
+  weekEntries.forEach(e => moodCounts[e.mood]++);
+  const topMood = Object.entries(moodCounts).sort((a,b)=>b[1]-a[1])[0];
+  const avgProd = weekEntries.length ? (weekEntries.reduce((s,e)=>s+e.productivity,0)/weekEntries.length).toFixed(1) : '—';
+  const streak = calcStreak();
+
+  document.getElementById('insight-kpis').innerHTML = `
+    <div class="kpi-card">
+      <div class="kpi-label">Best Day This Week</div>
+      <div class="kpi-value" style="color:${bestDay ? MOOD_COLORS[bestDay.mood] : 'var(--muted)'}">${bestDay ? new Date(bestDay.date+'T12:00:00').toLocaleDateString('en-US',{weekday:'short'}) : '—'}</div>
+      <div class="kpi-sub">${bestDay ? MOOD_EMOJIS[bestDay.mood]+' '+bestDay.mood : 'No data'}</div>
+    </div>
+    <div class="kpi-card">
+      <div class="kpi-label">Most Common Mood</div>
+      <div class="kpi-value" style="color:${topMood && topMood[1]>0 ? MOOD_COLORS[topMood[0]] : 'var(--muted)'}">${topMood && topMood[1]>0 ? MOOD_EMOJIS[topMood[0]] : '—'}</div>
+      <div class="kpi-sub">${topMood && topMood[1]>0 ? topMood[0].charAt(0).toUpperCase()+topMood[0].slice(1)+' ('+topMood[1]+'x)' : 'No data'}</div>
+    </div>
+    <div class="kpi-card">
+      <div class="kpi-label">Productivity Avg</div>
+      <div class="kpi-value" style="color:var(--teal)">${avgProd}</div>
+      <div class="kpi-sub">out of 10</div>
+    </div>
+    <div class="kpi-card">
+      <div class="kpi-label">Journal Streak</div>
+      <div class="kpi-value" style="color:var(--yellow)">🔥 ${streak}</div>
+      <div class="kpi-sub">days in a row</div>
+    </div>
+  `;
+
+  // Patterns
+  const patterns = generatePatterns();
+  document.getElementById('patterns-list').innerHTML = patterns.map(p => `<div class="pattern-item">${p}</div>`).join('') || '<div class="pattern-item">Keep journaling to unlock patterns!</div>';
+
+  // Tag cloud
+  const tagCounts = {};
+  entries.forEach(e => e.tags.forEach(t => { tagCounts[t] = (tagCounts[t]||0)+1; }));
+  const maxC = Math.max(...Object.values(tagCounts), 1);
+  const cloudHTML = Object.entries(tagCounts).sort((a,b)=>b[1]-a[1]).slice(0,20).map(([t,c]) => {
+    const size = 12 + Math.round((c/maxC) * 14);
+    const opacity = 0.5 + (c/maxC)*0.5;
+    return `<span class="cloud-tag" style="font-size:${size}px;opacity:${opacity}">#${t}</span>`;
+  }).join('');
+  document.getElementById('tag-cloud').innerHTML = cloudHTML || '<span style="color:var(--muted)">No tags yet</span>';
+}
+
+function generatePatterns() {
+  const patterns = [];
+  const dayMoods = {};
+  entries.forEach(e => {
+    const dow = new Date(e.date+'T12:00:00').toLocaleDateString('en-US',{weekday:'long'});
+    if (!dayMoods[dow]) dayMoods[dow] = [];
+    dayMoods[dow].push(MOOD_VALS[e.mood]);
+  });
+  const dayAvgs = Object.entries(dayMoods).map(([d,vals]) => [d, vals.reduce((a,b)=>a+b,0)/vals.length]);
+  if (dayAvgs.length) {
+    const best = dayAvgs.sort((a,b)=>b[1]-a[1])[0];
+    if (best[1] >= 3.5) patterns.push(`🌟 You tend to feel best on <strong>${best[0]}s</strong>`);
+    const worst = dayAvgs[dayAvgs.length-1];
+    if (worst[1] < 3.5) patterns.push(`📉 ${worst[0]}s tend to be harder — be extra kind to yourself`);
+  }
+  const streak = calcStreak();
+  if (streak >= 3) patterns.push(`🔥 Journaling streak: <strong>${streak} days</strong> — keep it up!`);
+  const avgMood = entries.length ? entries.reduce((s,e)=>s+MOOD_VALS[e.mood],0)/entries.length : 0;
+  if (avgMood >= 4) patterns.push(`😊 Your overall mood is <strong>positive</strong> — ${avgMood.toFixed(1)}/5 average`);
+  const avgProd = entries.length ? entries.reduce((s,e)=>s+e.productivity,0)/entries.length : 0;
+  if (avgProd >= 7) patterns.push(`⚡ High achiever! Average productivity <strong>${avgProd.toFixed(1)}/10</strong>`);
+  return patterns;
+}
+
+// ===================== SEARCH =====================
+function renderSearch() {
+  const q = document.getElementById('search-input').value.trim().toLowerCase();
+  const results = document.getElementById('search-results');
+  if (!q) {
+    results.innerHTML = '<div class="search-empty"><div class="empty-icon">🔍</div><h3>Start typing to search</h3><p>Search across your journal text, tags, and dates</p></div>';
+    return;
+  }
+  const matches = entries.filter(e => {
+    return e.day.toLowerCase().includes(q) ||
+      e.highlight.toLowerCase().includes(q) ||
+      e.worries.toLowerCase().includes(q) ||
+      e.tags.some(t => t.includes(q)) ||
+      e.date.includes(q) ||
+      e.mood.includes(q) ||
+      (e.gratitude && e.gratitude.some(g => g.toLowerCase().includes(q)));
+  });
+  if (!matches.length) {
+    results.innerHTML = '<div class="search-empty"><div class="empty-icon">💭</div><h3>No results found</h3><p>Try different keywords or check the spelling</p></div>';
+    return;
+  }
+  results.innerHTML = matches.map(e => {
+    const dateLabel = new Date(e.date+'T12:00:00').toLocaleDateString('en-US',{month:'short',day:'numeric',year:'numeric'});
+    const title = e.day ? e.day.split(/[.!?]/)[0].trim().slice(0,70) : 'Untitled';
+    return `
+      <div class="entry-card" onclick="switchToEntry(${e.id})" style="cursor:pointer">
+        <div class="entry-card-inner">
+          <div class="entry-mood-bar" style="background:${MOOD_COLORS[e.mood]}"></div>
+          <div class="entry-content">
+            <div class="entry-header"><span class="entry-date">${dateLabel}</span></div>
+            <div class="entry-title">${title}</div>
+            <div class="entry-badges">
+              <span class="badge badge-mood" style="background:${MOOD_COLORS[e.mood]}">${MOOD_EMOJIS[e.mood]} ${e.mood.charAt(0).toUpperCase()+e.mood.slice(1)}</span>
+              <span class="badge badge-prod">⚡ ${e.productivity}/10</span>
+              ${e.tags.map(t=>`<span class="badge badge-tag">#${t}</span>`).join('')}
+            </div>
+          </div>
+        </div>
+      </div>
+    `;
+  }).join('');
+  lucide.createIcons();
+}
+
+function switchToEntry(id) {
+  openPanel(id);
+}
+</script>
+</body>
+</html>
